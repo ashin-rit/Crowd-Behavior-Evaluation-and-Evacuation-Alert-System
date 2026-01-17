@@ -319,7 +319,7 @@ def main():
                                 fig.add_trace(go.Scatter(y=[h[z] for h in st.session_state.history['zone_counts'][-50:]], 
                                                         mode='lines', name=config.ZONE_CONFIG[z]['short'], line=dict(color=config.COLORS_RGB['SAFE'] if z==0 else None)))
                             fig.update_layout(height=250, margin=dict(l=0,r=0,t=0,b=0), legend=dict(orientation="h"))
-                            chart_placeholder.plotly_chart(fig, use_container_width=True)
+                            chart_placeholder.plotly_chart(fig, width="stretch", key=f"plotly_{processed_count}")
 
                         processed_count += 1
                     
