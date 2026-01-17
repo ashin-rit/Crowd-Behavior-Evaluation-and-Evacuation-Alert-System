@@ -31,6 +31,9 @@ OVERLAY_ALPHA = {
     "EMERGENCY": 0.3
 }
 
+# Audio alert URL (Merged from remote)
+ALARM_URL = 'https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3'
+
 # Custom CSS for enhanced visuals
 CUSTOM_CSS = """
 <style>
