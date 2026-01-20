@@ -14,4 +14,3 @@ Pillow>=9.0.0
 
 # Visualization
 plotly>=5.18.0
-streamlit-js-eval>=0.1.7
