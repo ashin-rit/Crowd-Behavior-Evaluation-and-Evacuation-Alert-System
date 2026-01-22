@@ -181,3 +181,66 @@ def get_summary_message(zone_statuses: Dict[int, str],
         return f"🔵 Moderate density detected. Total: {total_people} people"
     else:
         return f"✅ All zones safe. Total: {total_people} people"
+
+
+def generate_evacuation_instructions(zone_statuses: Dict[int, str], 
+                                     zone_exit_mapping: Dict, 
+                                     exit_config: List[Dict]) -> List[Dict]:
+    """
+    Wrapper function for app.py compatibility.
+    
+    Adapts the signature expected by app.py to call the actual generate_instructions function.
+    
+    Args:
+        zone_statuses: Dict mapping zone to status string
+        zone_exit_mapping: Zone to exit mapping
+        exit_config: List of exit configurations
+        
+    Returns:
+        list: List of instruction dictionaries formatted for app.py
+    """
+    from exit_logic import get_exit_status
+    
+    # Create zone_counts and zone_densities (estimated from statuses)
+    zone_counts = {z: 0 for z in range(4)}
+    zone_densities = {z: 0.0 for z in range(4)}
+    
+    # Estimate counts based on status for display purposes
+    status_to_count = {
+        "SAFE": 5,
+        "MODERATE": 20,
+        "WARNING": 40,
+        "EMERGENCY": 60
+    }
+    
+    for zone, status in zone_statuses.items():
+        zone_counts[zone] = status_to_count.get(status, 0)
+        zone_densities[zone] = zone_counts[zone] / 50.0  # Assuming 50m² zones
+    
+    # Create zone config
+    zone_config = {
+        0: {"name": "Zone 1 (Top-Left)", "area": 50},
+        1: {"name": "Zone 2 (Top-Right)", "area": 50},
+        2: {"name": "Zone 3 (Bottom-Left)", "area": 50},
+        3: {"name": "Zone 4 (Bottom-Right)", "area": 50}
+    }
+    
+    # Get exit statuses
+    exit_statuses = get_exit_status(exit_config, zone_statuses)
+    
+    # Call actual implementation
+    instructions = generate_instructions(
+        zone_statuses, zone_counts, zone_densities,
+        zone_config, exit_config, zone_exit_mapping, exit_statuses
+    )
+    
+    # Format for app.py (simplify structure)
+    formatted_instructions = []
+    for instr in instructions:
+        formatted_instructions.append({
+            'zone': f"Zone {instr['zone'] + 1}",
+            'instruction': instr['message']
+        })
+    
+    return formatted_instructions
+

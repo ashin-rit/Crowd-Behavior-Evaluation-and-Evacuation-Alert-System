@@ -7,10 +7,15 @@ streamlit>=1.28.0
 # Computer Vision & Video Processing
 opencv-python>=4.8.0
 ultralytics>=8.0.0
+torch>=2.0.0
 
 # Data Processing
+pandas>=2.0.0
 numpy>=1.24.0
 Pillow>=9.0.0
 
 # Visualization
 plotly>=5.18.0
+# Audio Alerts
+sounddevice>=0.4.6
+scipy>=1.10.0

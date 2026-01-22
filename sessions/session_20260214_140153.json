@@ -1,0 +1,1161 @@
+{
+  "id": "20260214_140153",
+  "created_at": "2026-02-14T14:01:53.668805",
+  "metadata": {
+    "video_name": "Text_to_Video_Prompts_for_Crowd_Evaluation.mp4",
+    "total_frames": 94,
+    "zone_config": {
+      "0": {
+        "name": "Zone 1 (Top-Left)",
+        "area": 50,
+        "short": "Zone 1"
+      },
+      "1": {
+        "name": "Zone 2 (Top-Right)",
+        "area": 50,
+        "short": "Zone 2"
+      },
+      "2": {
+        "name": "Zone 3 (Bottom-Left)",
+        "area": 50,
+        "short": "Zone 3"
+      },
+      "3": {
+        "name": "Zone 4 (Bottom-Right)",
+        "area": 50,
+        "short": "Zone 4"
+      }
+    }
+  },
+  "total_frames": 47,
+  "data": [
+    {
+      "timestamp": "2026-02-14T14:00:56.362859",
+      "frame": 2,
+      "total_people": 18,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 8,
+        "3": 10
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.16,
+        "3": 0.2
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:00:56.943419",
+      "frame": 4,
+      "total_people": 17,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 8,
+        "3": 9
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.16,
+        "3": 0.18
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:00:57.469399",
+      "frame": 6,
+      "total_people": 16,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 8,
+        "3": 8
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.16,
+        "3": 0.16
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:00:57.966556",
+      "frame": 8,
+      "total_people": 16,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 8,
+        "3": 8
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.16,
+        "3": 0.16
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:00:58.445431",
+      "frame": 10,
+      "total_people": 15,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 8,
+        "3": 7
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.16,
+        "3": 0.14
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:00:59.017327",
+      "frame": 12,
+      "total_people": 15,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 8,
+        "3": 7
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.16,
+        "3": 0.14
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:00:59.562585",
+      "frame": 14,
+      "total_people": 13,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 7,
+        "3": 6
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.14,
+        "3": 0.12
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:00.086675",
+      "frame": 16,
+      "total_people": 13,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 6,
+        "3": 7
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.12,
+        "3": 0.14
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:00.600667",
+      "frame": 18,
+      "total_people": 10,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 6,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.12,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:01.095485",
+      "frame": 20,
+      "total_people": 12,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 7,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.14,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:01.587084",
+      "frame": 22,
+      "total_people": 11,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 7,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.14,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:02.094559",
+      "frame": 24,
+      "total_people": 9,
+      "zone_counts": {
+        "0": 0,
+        "1": 1,
+        "2": 4,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.02,
+        "2": 0.08,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:02.571795",
+      "frame": 26,
+      "total_people": 9,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 5,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.1,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:03.073754",
+      "frame": 28,
+      "total_people": 10,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 3,
+        "3": 7
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.06,
+        "3": 0.14
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:03.563175",
+      "frame": 30,
+      "total_people": 7,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 2,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.04,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:04.054378",
+      "frame": 32,
+      "total_people": 7,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 2,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.04,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:04.530599",
+      "frame": 34,
+      "total_people": 10,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 4,
+        "3": 6
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.08,
+        "3": 0.12
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:05.019927",
+      "frame": 36,
+      "total_people": 9,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 4,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.08,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:05.499741",
+      "frame": 38,
+      "total_people": 4,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 3,
+        "3": 1
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.06,
+        "3": 0.02
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:05.973854",
+      "frame": 40,
+      "total_people": 3,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 3,
+        "3": 0
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.06,
+        "3": 0.0
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:06.435246",
+      "frame": 42,
+      "total_people": 4,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 2,
+        "3": 2
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.04,
+        "3": 0.04
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:06.916581",
+      "frame": 44,
+      "total_people": 8,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 3,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.06,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:07.385199",
+      "frame": 46,
+      "total_people": 7,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 2,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.04,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:08.204739",
+      "frame": 48,
+      "total_people": 6,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 3,
+        "3": 3
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.06,
+        "3": 0.06
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:08.698537",
+      "frame": 50,
+      "total_people": 7,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 3,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.06,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:09.184781",
+      "frame": 52,
+      "total_people": 5,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 2,
+        "3": 3
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.04,
+        "3": 0.06
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:09.717589",
+      "frame": 54,
+      "total_people": 4,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 1,
+        "3": 3
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.02,
+        "3": 0.06
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:10.224128",
+      "frame": 56,
+      "total_people": 4,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 1,
+        "3": 3
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.02,
+        "3": 0.06
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:10.680743",
+      "frame": 58,
+      "total_people": 10,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 4,
+        "3": 6
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.08,
+        "3": 0.12
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:11.175271",
+      "frame": 60,
+      "total_people": 10,
+      "zone_counts": {
+        "0": 1,
+        "1": 0,
+        "2": 4,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.02,
+        "1": 0.0,
+        "2": 0.08,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:11.643161",
+      "frame": 62,
+      "total_people": 13,
+      "zone_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 6,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.02,
+        "1": 0.02,
+        "2": 0.12,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:12.154281",
+      "frame": 64,
+      "total_people": 9,
+      "zone_counts": {
+        "0": 1,
+        "1": 0,
+        "2": 5,
+        "3": 3
+      },
+      "zone_densities": {
+        "0": 0.02,
+        "1": 0.0,
+        "2": 0.1,
+        "3": 0.06
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:12.636745",
+      "frame": 66,
+      "total_people": 8,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 5,
+        "3": 3
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.1,
+        "3": 0.06
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:13.180882",
+      "frame": 68,
+      "total_people": 7,
+      "zone_counts": {
+        "0": 1,
+        "1": 0,
+        "2": 4,
+        "3": 2
+      },
+      "zone_densities": {
+        "0": 0.02,
+        "1": 0.0,
+        "2": 0.08,
+        "3": 0.04
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:13.673810",
+      "frame": 70,
+      "total_people": 12,
+      "zone_counts": {
+        "0": 1,
+        "1": 2,
+        "2": 4,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.02,
+        "1": 0.04,
+        "2": 0.08,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:14.195972",
+      "frame": 72,
+      "total_people": 10,
+      "zone_counts": {
+        "0": 0,
+        "1": 2,
+        "2": 4,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.04,
+        "2": 0.08,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:14.688668",
+      "frame": 74,
+      "total_people": 10,
+      "zone_counts": {
+        "0": 0,
+        "1": 1,
+        "2": 5,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.02,
+        "2": 0.1,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:15.225427",
+      "frame": 76,
+      "total_people": 6,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 3,
+        "3": 3
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.06,
+        "3": 0.06
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:15.757715",
+      "frame": 78,
+      "total_people": 7,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 3,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.06,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:16.285364",
+      "frame": 80,
+      "total_people": 8,
+      "zone_counts": {
+        "0": 1,
+        "1": 0,
+        "2": 2,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.02,
+        "1": 0.0,
+        "2": 0.04,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:16.850118",
+      "frame": 82,
+      "total_people": 9,
+      "zone_counts": {
+        "0": 0,
+        "1": 1,
+        "2": 4,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.02,
+        "2": 0.08,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:17.346601",
+      "frame": 84,
+      "total_people": 6,
+      "zone_counts": {
+        "0": 0,
+        "1": 1,
+        "2": 3,
+        "3": 2
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.02,
+        "2": 0.06,
+        "3": 0.04
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:17.815260",
+      "frame": 86,
+      "total_people": 7,
+      "zone_counts": {
+        "0": 0,
+        "1": 2,
+        "2": 2,
+        "3": 3
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.04,
+        "2": 0.04,
+        "3": 0.06
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:18.287692",
+      "frame": 88,
+      "total_people": 7,
+      "zone_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 3,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.06,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:18.748567",
+      "frame": 90,
+      "total_people": 6,
+      "zone_counts": {
+        "0": 1,
+        "1": 0,
+        "2": 1,
+        "3": 4
+      },
+      "zone_densities": {
+        "0": 0.02,
+        "1": 0.0,
+        "2": 0.02,
+        "3": 0.08
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:19.224486",
+      "frame": 92,
+      "total_people": 13,
+      "zone_counts": {
+        "0": 3,
+        "1": 2,
+        "2": 3,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.06,
+        "1": 0.04,
+        "2": 0.06,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    },
+    {
+      "timestamp": "2026-02-14T14:01:19.692015",
+      "frame": 94,
+      "total_people": 8,
+      "zone_counts": {
+        "0": 0,
+        "1": 1,
+        "2": 2,
+        "3": 5
+      },
+      "zone_densities": {
+        "0": 0.0,
+        "1": 0.02,
+        "2": 0.04,
+        "3": 0.1
+      },
+      "zone_statuses": {
+        "0": "SAFE",
+        "1": "SAFE",
+        "2": "SAFE",
+        "3": "SAFE"
+      },
+      "global_status": "SAFE"
+    }
+  ]
+}

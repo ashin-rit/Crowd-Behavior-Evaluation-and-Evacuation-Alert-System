@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Style Samples - Crowd Evaluation System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin: 30px 0;
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .styles-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .style-sample {
+            border: 2px solid #333;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+        
+        .style-sample:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .style-header {
+            padding: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .style-content {
+            padding: 30px;
+            min-height: 500px;
+        }
+        
+        /* ============================================ */
+        /* STYLE 1: MODERN/SLEEK */
+        /* ============================================ */
+        .modern-sleek .style-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .modern-sleek .style-content {
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+        }
+        
+        .modern-title {
+            font-size: 3em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+            animation: fadeInUp 1s;
+        }
+        
+        .modern-subtitle {
+            color: #a8b2d1;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        
+        .modern-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .modern-card {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+        
+        .modern-card:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .modern-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        /* ============================================ */
+        /* STYLE 2: PROFESSIONAL/CORPORATE */
+        /* ============================================ */
+        .professional .style-header {
+            background: #ffffff;
+            color: #1a1a1a;
+        }
+        
+        .professional .style-content {
+            background: #f8f9fa;
+            color: #1a1a1a;
+        }
+        
+        .pro-title {
+            font-size: 2.5em;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .pro-subtitle {
+            color: #5d6d7e;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        
+        .pro-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .pro-metric {
+            background: white;
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .pro-metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .pro-metric-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        /* ============================================ */
+        /* STYLE 3: FUTURISTIC/TECH */
+        /* ============================================ */
+        .futuristic .style-header {
+            background: linear-gradient(135deg, #00f5ff 0%, #bd00ff 100%);
+            animation: glow 2s infinite alternate;
+        }
+        
+        .futuristic .style-content {
+            background: #000000;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .futuristic .style-content::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 245, 255, 0.1) 0%, transparent 70%);
+            animation: scan 8s linear infinite;
+        }
+        
+        .tech-title {
+            font-size: 3em;
+            font-weight: 900;
+            color: #00f5ff;
+            text-shadow: 0 0 20px rgba(0, 245, 255, 0.8),
+                         0 0 40px rgba(0, 245, 255, 0.5);
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .tech-panel {
+            background: rgba(0, 245, 255, 0.05);
+            border: 2px solid #00f5ff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: inset 0 0 20px rgba(0, 245, 255, 0.1);
+            position: relative;
+        }
+        
+        .tech-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00f5ff, transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        .tech-label {
+            color: #bd00ff;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .tech-value {
+            color: #00f5ff;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        /* ============================================ */
+        /* STYLE 4: ACADEMIC/RESEARCH */
+        /* ============================================ */
+        .academic .style-header {
+            background: #2c3e50;
+            border-bottom: 3px solid #e67e22;
+        }
+        
+        .academic .style-content {
+            background: #ecf0f1;
+            color: #2c3e50;
+        }
+        
+        .academic-title {
+            font-size: 2.2em;
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 10px;
+            border-left: 5px solid #e67e22;
+            padding-left: 15px;
+        }
+        
+        .academic-info {
+            background: white;
+            border: 1px solid #bdc3c7;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .academic-section {
+            margin: 15px 0;
+        }
+        
+        .academic-section h3 {
+            color: #e67e22;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+        
+        .academic-list {
+            list-style: none;
+            padding-left: 20px;
+        }
+        
+        .academic-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .academic-list li::before {
+            content: "▸ ";
+            color: #e67e22;
+            font-weight: bold;
+        }
+        
+        .academic-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .academic-stat {
+            background: #34495e;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .academic-stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #e67e22;
+        }
+        
+        /* ============================================ */
+        /* ANIMATIONS */
+        /* ============================================ */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes glow {
+            from {
+                box-shadow: 0 0 5px rgba(0, 245, 255, 0.5);
+            }
+            to {
+                box-shadow: 0 0 20px rgba(0, 245, 255, 1);
+            }
+        }
+        
+        @keyframes scan {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+        
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Choose Your Design Style</h1>
+        <p style="text-align: center; color: #a8b2d1; font-size: 1.1em; margin-bottom: 20px;">
+            Preview different design approaches for your Crowd Evaluation System
+        </p>
+        
+        <div class="styles-grid">
+            <!-- STYLE 1: MODERN/SLEEK -->
+            <div class="style-sample modern-sleek">
+                <div class="style-header">
+                    ✨ Modern/Sleek
+                </div>
+                <div class="style-content">
+                    <div class="modern-title">Crowd Evaluation System</div>
+                    <div class="modern-subtitle">
+                        Real-time intelligent crowd analysis with AI-powered safety monitoring
+                    </div>
+                    
+                    <div class="modern-cards">
+                        <div class="modern-card">
+                            <div class="modern-icon">🎯</div>
+                            <h3>YOLO Detection</h3>
+                            <p style="font-size: 0.9em; color: #8892b0;">Advanced person tracking</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="modern-icon">🗺️</div>
+                            <h3>Zone Analysis</h3>
+                            <p style="font-size: 0.9em; color: #8892b0;">Smart grid division</p>
+                        </div>
+                        <div class="modern-card">
+                            <div class="modern-icon">🚨</div>
+                            <h3>Live Alerts</h3>
+                            <p style="font-size: 0.9em; color: #8892b0;">Instant evacuation</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 30px; padding: 20px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; border: 1px solid rgba(102, 126, 234, 0.3);">
+                        <p style="color: #a8b2d1; line-height: 1.8;">
+                            <strong style="color: #667eea;">Features:</strong> Dark mode with vibrant gradients, smooth animations, glassmorphism effects, modern card layouts
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STYLE 2: PROFESSIONAL/CORPORATE -->
+            <div class="style-sample professional">
+                <div class="style-header">
+                    💼 Professional/Corporate
+                </div>
+                <div class="style-content">
+                    <div class="pro-title">Intelligent Crowd Behavior Evaluation System</div>
+                    <div class="pro-subtitle">
+                        A comprehensive solution for real-time crowd density monitoring and emergency evacuation management using advanced computer vision technology.
+                    </div>
+                    
+                    <div class="pro-metrics">
+                        <div class="pro-metric">
+                            <div class="pro-metric-value">99.2%</div>
+                            <div class="pro-metric-label">Detection Accuracy</div>
+                        </div>
+                        <div class="pro-metric">
+                            <div class="pro-metric-value">4</div>
+                            <div class="pro-metric-label">Zone Coverage</div>
+                        </div>
+                        <div class="pro-metric">
+                            <div class="pro-metric-value">Real-time</div>
+                            <div class="pro-metric-label">Processing</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 25px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <p style="color: #5d6d7e; line-height: 1.8;">
+                            <strong style="color: #2c3e50;">Features:</strong> Clean white background, data-focused layouts, professional typography, minimal distractions, business-ready appearance
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STYLE 3: FUTURISTIC/TECH -->
+            <div class="style-sample futuristic">
+                <div class="style-header">
+                    🚀 Futuristic/Tech
+                </div>
+                <div class="style-content">
+                    <div class="tech-title">CROWD_EVAL_SYS v2.0</div>
+                    <div style="color: #bd00ff; font-size: 1.1em; margin-bottom: 30px; position: relative; z-index: 1;">
+                        &gt;&gt; ADVANCED AI SURVEILLANCE PROTOCOL ACTIVE
+                    </div>
+                    
+                    <div class="tech-grid">
+                        <div class="tech-panel">
+                            <div class="tech-label">Neural Network</div>
+                            <div class="tech-value">YOLOv8 Active</div>
+                        </div>
+                        <div class="tech-panel">
+                            <div class="tech-label">Grid Status</div>
+                            <div class="tech-value">4 Zones Online</div>
+                        </div>
+                        <div class="tech-panel">
+                            <div class="tech-label">Threat Level</div>
+                            <div class="tech-value">Monitoring</div>
+                        </div>
+                        <div class="tech-panel">
+                            <div class="tech-label">System Status</div>
+                            <div class="tech-value">Operational</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 30px; padding: 15px; background: rgba(189, 0, 255, 0.1); border: 1px solid #bd00ff; border-radius: 8px; position: relative; z-index: 1;">
+                        <p style="color: #00f5ff; line-height: 1.8; font-family: 'Courier New', monospace;">
+                            <strong style="color: #bd00ff;">Features:</strong> Neon cyan/purple theme, sci-fi aesthetics, glowing effects, terminal-style text, animated scanlines
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STYLE 4: ACADEMIC/RESEARCH -->
+            <div class="style-sample academic">
+                <div class="style-header">
+                    🎓 Academic/Research
+                </div>
+                <div class="style-content">
+                    <div class="academic-title">
+                        Intelligent Crowd Behavior Evaluation & Evacuation System
+                    </div>
+                    <div style="color: #7f8c8d; margin-bottom: 20px;">
+                        MCA Final Year Project | Computer Vision & Safety Engineering
+                    </div>
+                    
+                    <div class="academic-info">
+                        <div class="academic-section">
+                            <h3>Research Methodology</h3>
+                            <ul class="academic-list">
+                                <li>YOLOv8 Neural Network for Person Detection</li>
+                                <li>Density-based Classification Algorithm</li>
+                                <li>Quadrant Zone Division Strategy</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="academic-section">
+                            <h3>Key Contributions</h3>
+                            <ul class="academic-list">
+                                <li>Real-time crowd density monitoring</li>
+                                <li>Intelligent evacuation routing system</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="academic-stats">
+                        <div class="academic-stat">
+                            <div class="academic-stat-number">4</div>
+                            <div>Classification Levels</div>
+                        </div>
+                        <div class="academic-stat">
+                            <div class="academic-stat-number">2x2</div>
+                            <div>Zone Grid System</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: white; border-left: 4px solid #e67e22; border-radius: 5px;">
+                        <p style="color: #5d6d7e; line-height: 1.8;">
+                            <strong style="color: #2c3e50;">Features:</strong> Documentation-heavy, detailed explanations, methodology focus, research paper aesthetic, academic citations
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 50px; text-align: center; padding: 30px; background: rgba(102, 126, 234, 0.1); border-radius: 15px; border: 2px solid rgba(102, 126, 234, 0.3);">
+            <h2 style="margin-bottom: 20px; color: #667eea;">Which style impresses you most?</h2>
+            <p style="color: #a8b2d1; font-size: 1.1em; line-height: 1.8;">
+                Each style can be customized further. Let me know which one aligns best with your vision,<br>
+                and I'll build a complete multi-page system in that style!
+            </p>
+        </div>
+    </div>
+</body>
+</html>

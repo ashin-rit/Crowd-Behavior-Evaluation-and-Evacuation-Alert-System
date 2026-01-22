@@ -140,21 +140,24 @@ def get_zone_counts_from_detections(detections: list, frame_width: int, frame_he
     return zone_counts
 
 
-def calculate_zone_statuses(zone_counts: dict, zone_config: dict) -> tuple:
+def calculate_zone_statuses(zone_counts: dict, zone_config: dict, timer_manager=None) -> tuple:
     """
-    Calculate status for each zone based on density.
+    Calculate status for each zone based on density and manage timers.
     
     Args:
         zone_counts: Dict mapping zone index to people count
         zone_config: Dict with zone configuration including area
+        timer_manager: EmergencyTimerManager instance (optional)
         
     Returns:
-        tuple: (zone_densities, zone_statuses)
+        tuple: (zone_densities, zone_statuses, zone_timer_data)
             - zone_densities: Dict mapping zone to density value
             - zone_statuses: Dict mapping zone to status string
+            - zone_timer_data: Dict mapping zone to timer info (if timer_manager provided)
     """
     zone_densities = {}
     zone_statuses = {}
+    zone_timer_data = {}
     
     for zone in range(4):
         count = zone_counts.get(zone, 0)
@@ -165,5 +168,112 @@ def calculate_zone_statuses(zone_counts: dict, zone_config: dict) -> tuple:
         
         zone_densities[zone] = density
         zone_statuses[zone] = status
+        
+        # ===== TIMER MANAGEMENT =====
+        if timer_manager is not None:
+            if status == "EMERGENCY":
+                # Start or update timer for emergency zones
+                timer_manager.start_timer(zone)
+                timer_manager.update_timer(zone)
+                zone_timer_data[zone] = timer_manager.get_timer_summary(zone)
+            else:
+                # Stop timer if zone improved
+                if zone in timer_manager.zone_timers:
+                    timer_manager.stop_timer(zone)
+                zone_timer_data[zone] = {
+                    'active': False,
+                    'elapsed': 0,
+                    'formatted': '00:00',
+                    'severity': None,
+                    'color_bgr': (255, 255, 255),
+                    'color_hex': '#ffffff',
+                    'flash': False
+                }
     
-    return zone_densities, zone_statuses
+    return zone_densities, zone_statuses, zone_timer_data
+
+
+def get_zone_boundaries(frame_width: int, frame_height: int) -> dict:
+    """
+    Generate zone boundary coordinates for a 2x2 grid.
+    
+    Returns a dictionary mapping zone index to boundary coordinates.
+    This is used by app.py for zone-based density calculations.
+    
+    Args:
+        frame_width: Width of the video frame
+        frame_height: Height of the video frame
+        
+    Returns:
+        dict: Zone index mapped to boundary dict with x1, y1, x2, y2
+    """
+    mid_x = frame_width // 2
+    mid_y = frame_height // 2
+    
+    return {
+        0: {'x1': 0, 'y1': 0, 'x2': mid_x, 'y2': mid_y},           # Top-Left
+        1: {'x1': mid_x, 'y1': 0, 'x2': frame_width, 'y2': mid_y},  # Top-Right
+        2: {'x1': 0, 'y1': mid_y, 'x2': mid_x, 'y2': frame_height}, # Bottom-Left
+        3: {'x1': mid_x, 'y1': mid_y, 'x2': frame_width, 'y2': frame_height}  # Bottom-Right
+    }
+
+
+def calculate_zone_density(person_boxes: list, boundaries: dict, frame_shape: tuple, zone_area: float = 50.0) -> float:
+    """
+    Calculate density for a zone based on YOLO detection boxes.
+    
+    This function counts how many person boxes have their center point
+    within the zone boundaries, then calculates density.
+    
+    Args:
+        person_boxes: List of YOLO box objects with xyxy coordinates
+        boundaries: Dict with x1, y1, x2, y2 for zone boundaries
+        frame_shape: Shape of the frame (height, width, channels)
+        zone_area: Area of the zone in square meters (default: 50)
+        
+    Returns:
+        float: Density in people per square meter
+    """
+    count = 0
+    
+    for box in person_boxes:
+        # Get box coordinates
+        x1, y1, x2, y2 = box.xyxy[0]
+        
+        # Calculate center point
+        x_center = (x1 + x2) / 2
+        y_center = (y1 + y2) / 2
+        
+        # Check if center is within zone boundaries
+        if (boundaries['x1'] <= x_center < boundaries['x2'] and 
+            boundaries['y1'] <= y_center < boundaries['y2']):
+            count += 1
+    
+    return calculate_density(count, zone_area)
+
+
+def classify_zone_status(density: float, thresholds: dict) -> str:
+    """
+    Classify zone status using provided density thresholds.
+    
+    This is a wrapper around get_status_by_density that allows
+    custom thresholds to be passed in.
+    
+    Args:
+        density: Crowd density in people/m²
+        thresholds: Dict with SAFE and WARNING threshold values
+        
+    Returns:
+        str: Status classification (SAFE, MODERATE, WARNING, or EMERGENCY)
+    """
+    safe_threshold = thresholds.get("SAFE", 2.0)
+    warning_threshold = thresholds.get("WARNING", 5.0)
+    
+    if density < safe_threshold:
+        return "SAFE"
+    elif density < (safe_threshold + warning_threshold) / 2:
+        return "MODERATE"
+    elif density < warning_threshold:
+        return "WARNING"
+    else:
+        return "EMERGENCY"

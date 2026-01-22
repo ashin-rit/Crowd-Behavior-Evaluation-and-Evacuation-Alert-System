@@ -121,3 +121,25 @@ DEFAULT_ZONE_AREA = 50
 
 # Direction options for exits
 EXIT_DIRECTIONS = ["North", "South", "East", "West", "Northeast", "Northwest", "Southeast", "Southwest"]
+
+# Add these constants to your existing config.py
+
+# ============================================
+# EMERGENCY TIMER CONFIGURATION
+# ============================================
+TIMER_THRESHOLDS = {
+    'WARNING': 30,      # 0-30 seconds: Yellow
+    'CRITICAL': 60,     # 30-60 seconds: Orange
+    'SEVERE': 60        # 60+ seconds: Red flashing
+}
+
+TIMER_COLORS = {
+    'WARNING': (0, 255, 255),      # Yellow (BGR)
+    'CRITICAL': (0, 165, 255),     # Orange (BGR)
+    'SEVERE': (0, 0, 255)          # Red (BGR)
+}
+
+# Timer display settings
+TIMER_FONT_SCALE = 0.7
+TIMER_FONT_THICKNESS = 2
+TIMER_FLASH_INTERVAL = 0.5  # Seconds between flashes for SEVERE state

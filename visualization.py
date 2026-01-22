@@ -3,7 +3,7 @@
 VISUALIZATION MODULE
 ================================================================================
 Handles all frame drawing operations including heatmap overlays, zone grids,
-HUD elements, and bounding boxes.
+HUD elements, bounding boxes, and emergency timers.
 
 Author: Ashin Saji
 MCA Final Year Project
@@ -153,6 +153,139 @@ def draw_zone_hud(frame: np.ndarray, zone: int, count: int, density: float,
     return frame
 
 
+def draw_emergency_timer(frame: np.ndarray, zone: int, timer_data: dict,
+                        frame_width: int, frame_height: int) -> np.ndarray:
+    """
+    Draw emergency timer overlay for a specific zone.
+    
+    Displays:
+    - Zone number
+    - Elapsed time in MM:SS format
+    - Color-coded based on severity (Yellow → Orange → Red)
+    - Flashing effect for SEVERE (60+ seconds)
+    - Critical delay warning for 60+ seconds
+    
+    Args:
+        frame: Video frame to draw on
+        zone: Zone index (0-3)
+        timer_data: Timer information dict from timer_manager
+        frame_width: Width of the frame
+        frame_height: Height of the frame
+        
+    Returns:
+        np.ndarray: Frame with timer overlay
+    """
+    if not timer_data.get('active', False):
+        return frame
+    
+    # Skip drawing if in SEVERE flash-off state
+    if timer_data['severity'] == 'SEVERE' and not timer_data.get('flash', True):
+        return frame
+    
+    mid_x = frame_width // 2
+    mid_y = frame_height // 2
+    
+    # Timer positions (bottom of each zone, centered)
+    timer_positions = {
+        0: (mid_x // 4, mid_y - 60),           # Top-Left zone
+        1: (mid_x + mid_x // 4, mid_y - 60),   # Top-Right zone
+        2: (mid_x // 4, frame_height - 60),    # Bottom-Left zone
+        3: (mid_x + mid_x // 4, frame_height - 60)  # Bottom-Right zone
+    }
+    
+    x, y = timer_positions[zone]
+    
+    # Get timer info
+    time_str = timer_data['formatted']
+    severity = timer_data['severity']
+    color = timer_data['color_bgr']
+    
+    # Create timer label
+    label = f"ZONE {zone + 1} EMERGENCY: {time_str}"
+    
+    # Font settings
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.7
+    font_thickness = 2
+    
+    # Get text size for background
+    (text_width, text_height), baseline = cv2.getTextSize(
+        label, font, font_scale, font_thickness
+    )
+    
+    # Center the text
+    text_x = x - text_width // 2
+    text_y = y
+    
+    # Draw background rectangle
+    padding = 8
+    bg_x1 = text_x - padding
+    bg_y1 = text_y - text_height - padding
+    bg_x2 = text_x + text_width + padding
+    bg_y2 = text_y + baseline + padding
+    
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (bg_x1, bg_y1), (bg_x2, bg_y2), (0, 0, 0), -1)
+    frame = cv2.addWeighted(overlay, 0.8, frame, 0.2, 0)
+    
+    # Draw colored border
+    border_thickness = 3 if severity == 'SEVERE' else 2
+    cv2.rectangle(frame, (bg_x1, bg_y1), (bg_x2, bg_y2), color, border_thickness)
+    
+    # Draw timer text
+    cv2.putText(frame, label, (text_x, text_y), font, font_scale, 
+                color, font_thickness, cv2.LINE_AA)
+    
+    # Add escalation warning for SEVERE cases (60+ seconds)
+    if severity == 'SEVERE':
+        warning_text = "CRITICAL RESPONSE DELAY!"
+        warning_y = text_y + 28
+        
+        (warn_width, warn_height), _ = cv2.getTextSize(
+            warning_text, font, 0.6, 2
+        )
+        warn_x = x - warn_width // 2
+        
+        # Draw warning background
+        warn_bg_x1 = warn_x - 5
+        warn_bg_y1 = warning_y - warn_height - 5
+        warn_bg_x2 = warn_x + warn_width + 5
+        warn_bg_y2 = warning_y + 5
+        
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (warn_bg_x1, warn_bg_y1), 
+                     (warn_bg_x2, warn_bg_y2), (0, 0, 0), -1)
+        frame = cv2.addWeighted(overlay, 0.8, frame, 0.2, 0)
+        
+        # Draw warning text
+        cv2.putText(frame, warning_text, (warn_x, warning_y), 
+                   font, 0.6, (0, 0, 255), 2, cv2.LINE_AA)
+    
+    return frame
+
+
+def draw_all_emergency_timers(frame: np.ndarray, zone_timer_data: Dict[int, dict],
+                              frame_width: int, frame_height: int) -> np.ndarray:
+    """
+    Draw emergency timers for all zones with active emergencies.
+    
+    Args:
+        frame: Video frame to draw on
+        zone_timer_data: Dict mapping zone index to timer data
+        frame_width: Width of the frame
+        frame_height: Height of the frame
+        
+    Returns:
+        np.ndarray: Frame with all timer overlays
+    """
+    for zone, timer_data in zone_timer_data.items():
+        if timer_data.get('active', False):
+            frame = draw_emergency_timer(frame, zone, timer_data, 
+                                        frame_width, frame_height)
+    
+    return frame
+
+
 def draw_bounding_boxes(frame: np.ndarray, detections: List[Dict],
                         zone_statuses: Dict[int, str]) -> np.ndarray:
     """
@@ -186,22 +319,26 @@ def draw_bounding_boxes(frame: np.ndarray, detections: List[Dict],
     return frame
 
 
-def process_frame(frame: np.ndarray, model, zone_config: Dict) -> Tuple:
+def process_frame(frame: np.ndarray, model, zone_config: Dict, 
+                 timer_manager=None) -> Tuple:
     """
     Main processing function for each video frame.
     
     Pipeline:
     1. Run YOLO inference to detect people
     2. Calculate zone counts and densities
-    3. Draw visualizations
+    3. Manage emergency timers
+    4. Draw visualizations
     
     Args:
         frame: Input video frame (BGR format)
         model: Loaded YOLO model
         zone_config: Zone configuration with areas
+        timer_manager: EmergencyTimerManager instance (optional)
         
     Returns:
-        tuple: (processed_frame, detections, zone_counts, zone_densities, zone_statuses)
+        tuple: (processed_frame, detections, zone_counts, zone_densities, 
+                zone_statuses, zone_timer_data)
     """
     from zone_logic import calculate_zone_statuses
     
@@ -235,8 +372,10 @@ def process_frame(frame: np.ndarray, model, zone_config: Dict) -> Tuple:
                 'confidence': confidence
             })
     
-    # Calculate statuses
-    zone_densities, zone_statuses = calculate_zone_statuses(zone_counts, zone_config)
+    # Calculate statuses with timer management
+    zone_densities, zone_statuses, zone_timer_data = calculate_zone_statuses(
+        zone_counts, zone_config, timer_manager
+    )
     
     # Draw visualizations
     # 1. Heatmap overlays
@@ -256,4 +395,111 @@ def process_frame(frame: np.ndarray, model, zone_config: Dict) -> Tuple:
                               zone_densities[zone], zone_statuses[zone],
                               frame_width, frame_height, zone_config)
     
-    return frame, detections, zone_counts, zone_densities, zone_statuses
+    # 5. Emergency timers (if timer_manager provided)
+    if timer_manager is not None and zone_timer_data:
+        frame = draw_all_emergency_timers(frame, zone_timer_data, 
+                                         frame_width, frame_height)
+    
+    return frame, detections, zone_counts, zone_densities, zone_statuses, zone_timer_data
+
+
+# ============================================================================
+# WRAPPER FUNCTIONS FOR APP.PY COMPATIBILITY
+# ============================================================================
+
+def draw_zone_grid_wrapper(frame: np.ndarray, zone_boundaries: Dict) -> np.ndarray:
+    """
+    Wrapper function for draw_zone_grid to match app.py's expected signature.
+    
+    Args:
+        frame: Video frame
+        zone_boundaries: Dictionary of zone boundaries (not used, for API compatibility)
+        
+    Returns:
+        Frame with grid lines drawn
+    """
+    frame_height, frame_width = frame.shape[:2]
+    return draw_zone_grid(frame, frame_width, frame_height)
+
+
+def draw_density_heatmap(frame: np.ndarray, zone_densities: Dict[int, float], 
+                        zone_boundaries: Dict) -> np.ndarray:
+    """
+    Draw density heatmap overlay for all zones.
+    
+    Creates semi-transparent colored overlays on each zone based on their
+    density status (SAFE=green, MODERATE=blue, WARNING=yellow, EMERGENCY=red).
+    
+    Args:
+        frame: Video frame to draw on
+        zone_densities: Dict mapping zone index to density value
+        zone_boundaries: Dict of zone boundaries (not used, frame dimensions derived)
+        
+    Returns:
+        Frame with heatmap overlays
+    """
+    from zone_logic import get_status_by_density
+    
+    frame_height, frame_width = frame.shape[:2]
+    
+    for zone, density in zone_densities.items():
+        status = get_status_by_density(density)
+        frame = draw_zone_overlay(frame, zone, status, frame_width, frame_height)
+    
+    return frame
+
+
+def draw_exit_status(frame: np.ndarray, exit_statuses: Dict[int, str], 
+                    exit_config: List[Dict]) -> np.ndarray:
+    """
+    Draw exit status indicators on the frame.
+    
+    Displays the status of each exit (OPEN/CROWDED/BLOCKED) at the top
+    of the frame with color-coded indicators.
+    
+    Args:
+        frame: Video frame to draw on
+        exit_statuses: Dict mapping exit index to status string
+        exit_config: List of exit configuration dictionaries
+        
+    Returns:
+        Frame with exit status indicators
+    """
+    from config import EXIT_STATUS_COLORS
+    
+    # Define colors for each status (BGR format)
+    status_colors_bgr = {
+        "OPEN": (0, 255, 0),      # Green
+        "CROWDED": (0, 165, 255),  # Orange
+        "BLOCKED": (0, 0, 255)     # Red
+    }
+    
+    # Draw exit statuses at the top of the frame
+    y_offset = 30
+    x_start = 10
+    
+    for idx, exit_info in enumerate(exit_config):
+        if idx >= len(exit_statuses):
+            break
+            
+        status = exit_statuses.get(idx, "OPEN")
+        exit_name = exit_info.get("name", f"Exit {idx + 1}")
+        direction = exit_info.get("direction", "")
+        color = status_colors_bgr.get(status, (255, 255, 255))
+        
+        # Draw semi-transparent background
+        text = f"{exit_name} ({direction}): {status}"
+        (text_width, text_height), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+        
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (x_start - 5, y_offset - text_height - 5), 
+                     (x_start + text_width + 5, y_offset + 5), (0, 0, 0), -1)
+        frame = cv2.addWeighted(overlay, 0.6, frame, 0.4, 0)
+        
+        # Draw text
+        cv2.putText(frame, text, (x_start, y_offset), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2, cv2.LINE_AA)
+        
+        y_offset += 35
+    
+    return frame
