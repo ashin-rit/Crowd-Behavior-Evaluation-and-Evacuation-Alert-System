@@ -26,10 +26,16 @@ Features:
 import streamlit as st
 import cv2
 import numpy as np
-from ultralytics import YOLO
 import tempfile
 import time
 from PIL import Image
+
+# Import custom modules
+import config
+from config import ZONE_CONFIG, STATUS_COLORS_RGB, CUSTOM_CSS
+from model_loader import load_yolo_model
+from processor import process_frame
+from logic import generate_instructions
 
 # Page configuration - Wide layout for dashboard-style display
 st.set_page_config(
@@ -40,519 +46,11 @@ st.set_page_config(
 )
 
 # Custom CSS for enhanced visuals
-st.markdown("""
-<style>
-    /* Main container styling */
-    .main {
-        padding: 1rem;
-    }
-    
-    /* Alert box styles */
-    .safe-alert {
-        background: linear-gradient(135deg, #1a4d1a, #2d7d2d);
-        padding: 1rem;
-        border-radius: 10px;
-        border-left: 5px solid #00ff00;
-        margin: 0.5rem 0;
-    }
-    
-    .warning-alert {
-        background: linear-gradient(135deg, #4d4d1a, #7d7d2d);
-        padding: 1rem;
-        border-radius: 10px;
-        border-left: 5px solid #ffff00;
-        margin: 0.5rem 0;
-    }
-    
-    .emergency-alert {
-        background: linear-gradient(135deg, #4d1a1a, #7d2d2d);
-        padding: 1rem;
-        border-radius: 10px;
-        border-left: 5px solid #ff0000;
-        margin: 0.5rem 0;
-        animation: pulse 1s infinite;
-    }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
-    }
-    
-    /* Alarm banner */
-    .alarm-banner {
-        background: linear-gradient(90deg, #ff0000, #cc0000, #ff0000);
-        color: white;
-        padding: 1rem;
-        text-align: center;
-        font-size: 1.5rem;
-        font-weight: bold;
-        border-radius: 10px;
-        animation: flash 0.5s infinite;
-        margin: 1rem 0;
-    }
-    
-    @keyframes flash {
-        0%, 100% { background: linear-gradient(90deg, #ff0000, #cc0000, #ff0000); }
-        50% { background: linear-gradient(90deg, #cc0000, #ff0000, #cc0000); }
-    }
-    
-    /* Metric cards */
-    .metric-card {
-        background: linear-gradient(135deg, #1e1e2e, #2d2d3d);
-        padding: 1rem;
-        border-radius: 10px;
-        text-align: center;
-        margin: 0.5rem 0;
-    }
-    
-    /* Zone status headers */
-    .zone-header {
-        font-size: 1.2rem;
-        font-weight: bold;
-        padding: 0.5rem;
-        border-radius: 5px;
-        text-align: center;
-    }
-</style>
-""", unsafe_allow_html=True)
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 
 # ==============================================================================
-# SECTION 2: YOLO MODEL LOADING WITH CACHING
-# ==============================================================================
-@st.cache_resource
-def load_yolo_model():
-    """
-    Load the YOLOv8 model with caching to prevent reloading on every frame.
-    
-    Uses @st.cache_resource decorator to cache the model in memory.
-    This is critical for performance as model loading is expensive.
-    
-    Returns:
-        YOLO: Loaded YOLOv8 nano model for person detection
-    """
-    # Using YOLOv8 nano for balance between speed and accuracy
-    # 'yolov8n.pt' will be auto-downloaded on first run
-    model = YOLO('yolov8n.pt')
-    return model
-
-
-# ==============================================================================
-# SECTION 3: ZONE CONFIGURATION AND CONSTANTS
-# ==============================================================================
-
-# Zone names and their assigned exits (hardcoded as per requirements)
-ZONE_CONFIG = {
-    0: {"name": "Zone 1 (Top-Left)", "exit": "North Exit", "short": "Zone 1"},
-    1: {"name": "Zone 2 (Top-Right)", "exit": "East Exit", "short": "Zone 2"},
-    2: {"name": "Zone 3 (Bottom-Left)", "exit": "West Exit", "short": "Zone 3"},
-    3: {"name": "Zone 4 (Bottom-Right)", "exit": "South Exit", "short": "Zone 4"}
-}
-
-# Status colors in BGR format (for OpenCV)
-STATUS_COLORS_BGR = {
-    "SAFE": (0, 255, 0),        # Green
-    "WARNING": (0, 255, 255),    # Yellow
-    "EMERGENCY": (0, 0, 255)     # Red
-}
-
-# Status colors in RGB format (for Streamlit)
-STATUS_COLORS_RGB = {
-    "SAFE": "#00FF00",
-    "WARNING": "#FFFF00",
-    "EMERGENCY": "#FF0000"
-}
-
-# Overlay alpha values for heatmap
-OVERLAY_ALPHA = {
-    "SAFE": 0.1,
-    "WARNING": 0.2,
-    "EMERGENCY": 0.3
-}
-
-
-# ==============================================================================
-# SECTION 4: HELPER FUNCTIONS
-# ==============================================================================
-
-def get_zone(cx: int, cy: int, frame_width: int, frame_height: int) -> int:
-    """
-    Determine which zone (0-3) a point belongs to based on 2x2 grid division.
-    
-    ZONE DIVISION LOGIC (Academic Explanation):
-    ============================================
-    The frame is divided into 4 equal quadrants using the center point:
-    
-        +-------------------+-------------------+
-        |                   |                   |
-        |      Zone 0       |      Zone 1       |
-        |    (Top-Left)     |    (Top-Right)    |
-        |                   |                   |
-        +---------+---------+---------+---------+
-        |                   |                   |
-        |      Zone 2       |      Zone 3       |
-        |   (Bottom-Left)   |   (Bottom-Right)  |
-        |                   |                   |
-        +-------------------+-------------------+
-        
-    The midpoint divides the frame:
-        - Horizontal midpoint: frame_width // 2
-        - Vertical midpoint: frame_height // 2
-        
-    Zone assignment:
-        - If cx < mid_x AND cy < mid_y: Zone 0 (Top-Left)
-        - If cx >= mid_x AND cy < mid_y: Zone 1 (Top-Right)
-        - If cx < mid_x AND cy >= mid_y: Zone 2 (Bottom-Left)
-        - If cx >= mid_x AND cy >= mid_y: Zone 3 (Bottom-Right)
-    
-    Args:
-        cx: X-coordinate of the point (center of bounding box)
-        cy: Y-coordinate of the point (center of bounding box)
-        frame_width: Width of the video frame
-        frame_height: Height of the video frame
-        
-    Returns:
-        int: Zone index (0, 1, 2, or 3)
-    """
-    mid_x = frame_width // 2
-    mid_y = frame_height // 2
-    
-    # Determine zone based on quadrant
-    if cx < mid_x:
-        if cy < mid_y:
-            return 0  # Top-Left
-        else:
-            return 2  # Bottom-Left
-    else:
-        if cy < mid_y:
-            return 1  # Top-Right
-        else:
-            return 3  # Bottom-Right
-
-
-def get_status(count: int, threshold: int) -> str:
-    """
-    Determine the status based on count and threshold using Traffic Light logic.
-    
-    TRAFFIC LIGHT CLASSIFICATION SYSTEM (Academic Explanation):
-    ===========================================================
-    The system uses a three-tier classification based on crowd density:
-    
-    1. SAFE (Green): Count is 0-50% of threshold
-       - Normal operations, monitoring only
-       - Low risk of overcrowding
-       
-    2. WARNING (Yellow): Count is 50-85% of threshold
-       - Increased density detected
-       - Proactive measures needed (slow entry, increase monitoring)
-       
-    3. EMERGENCY (Red): Count is >85% of threshold
-       - Critical overcrowding
-       - Immediate evacuation required
-    
-    Args:
-        count: Number of people detected in the zone
-        threshold: Maximum safe capacity for the zone
-        
-    Returns:
-        str: Status string ("SAFE", "WARNING", or "EMERGENCY")
-    """
-    if threshold == 0:
-        return "SAFE"
-    
-    percentage = (count / threshold) * 100
-    
-    if percentage <= 50:
-        return "SAFE"
-    elif percentage <= 85:
-        return "WARNING"
-    else:
-        return "EMERGENCY"
-
-
-def draw_zone_overlay(frame: np.ndarray, zone: int, status: str, 
-                      frame_width: int, frame_height: int) -> np.ndarray:
-    """
-    Draw a semi-transparent heatmap overlay on the specified zone.
-    
-    The overlay color and transparency are determined by the zone's status:
-    - SAFE: Green with 10% opacity
-    - WARNING: Yellow with 20% opacity
-    - EMERGENCY: Red with 30% opacity
-    
-    Args:
-        frame: The video frame to draw on
-        zone: Zone index (0-3)
-        status: Current status of the zone
-        frame_width: Width of the frame
-        frame_height: Height of the frame
-        
-    Returns:
-        np.ndarray: Frame with the overlay applied
-    """
-    mid_x = frame_width // 2
-    mid_y = frame_height // 2
-    
-    # Determine zone coordinates
-    zone_coords = {
-        0: (0, 0, mid_x, mid_y),           # Top-Left
-        1: (mid_x, 0, frame_width, mid_y),  # Top-Right
-        2: (0, mid_y, mid_x, frame_height), # Bottom-Left
-        3: (mid_x, mid_y, frame_width, frame_height)  # Bottom-Right
-    }
-    
-    x1, y1, x2, y2 = zone_coords[zone]
-    
-    # Create overlay
-    overlay = frame.copy()
-    color = STATUS_COLORS_BGR[status]
-    alpha = OVERLAY_ALPHA[status]
-    
-    cv2.rectangle(overlay, (x1, y1), (x2, y2), color, -1)
-    
-    # Blend overlay with original frame
-    frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
-    
-    return frame
-
-
-def draw_zone_grid(frame: np.ndarray, frame_width: int, frame_height: int) -> np.ndarray:
-    """
-    Draw the 2x2 grid lines on the frame for visual zone separation.
-    
-    Args:
-        frame: The video frame to draw on
-        frame_width: Width of the frame
-        frame_height: Height of the frame
-        
-    Returns:
-        np.ndarray: Frame with grid lines
-    """
-    mid_x = frame_width // 2
-    mid_y = frame_height // 2
-    
-    # Draw vertical line (center)
-    cv2.line(frame, (mid_x, 0), (mid_x, frame_height), (255, 255, 255), 2)
-    
-    # Draw horizontal line (center)
-    cv2.line(frame, (0, mid_y), (frame_width, mid_y), (255, 255, 255), 2)
-    
-    return frame
-
-
-def draw_zone_hud(frame: np.ndarray, zone: int, count: int, status: str,
-                  frame_width: int, frame_height: int) -> np.ndarray:
-    """
-    Draw the Heads-Up Display (HUD) showing zone name and people count.
-    
-    HUD DESIGN (Academic Explanation):
-    ==================================
-    Each zone displays:
-    - Zone name (e.g., "Zone 1")
-    - People count (e.g., "People: 12")
-    - Status indicator color
-    
-    The HUD text is positioned at the top-left corner of each zone
-    with a semi-transparent background for readability.
-    
-    Args:
-        frame: The video frame to draw on
-        zone: Zone index (0-3)
-        count: Number of people in the zone
-        status: Current status of the zone
-        frame_width: Width of the frame
-        frame_height: Height of the frame
-        
-    Returns:
-        np.ndarray: Frame with HUD elements
-    """
-    mid_x = frame_width // 2
-    mid_y = frame_height // 2
-    
-    # HUD positions (top-left of each zone)
-    hud_positions = {
-        0: (10, 30),
-        1: (mid_x + 10, 30),
-        2: (10, mid_y + 30),
-        3: (mid_x + 10, mid_y + 30)
-    }
-    
-    x, y = hud_positions[zone]
-    color = STATUS_COLORS_BGR[status]
-    zone_name = ZONE_CONFIG[zone]["short"]
-    
-    # Draw background rectangle for HUD
-    bg_width = 150
-    bg_height = 60
-    
-    # Semi-transparent background
-    overlay = frame.copy()
-    cv2.rectangle(overlay, (x - 5, y - 25), (x + bg_width, y + bg_height - 20), (0, 0, 0), -1)
-    frame = cv2.addWeighted(overlay, 0.5, frame, 0.5, 0)
-    
-    # Draw zone name
-    cv2.putText(frame, zone_name, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 
-                0.7, color, 2, cv2.LINE_AA)
-    
-    # Draw people count
-    cv2.putText(frame, f"People: {count}", (x, y + 25), cv2.FONT_HERSHEY_SIMPLEX,
-                0.6, (255, 255, 255), 2, cv2.LINE_AA)
-    
-    return frame
-
-
-def process_frame(frame: np.ndarray, model: YOLO, threshold: int) -> tuple:
-    """
-    Main processing function for each video frame.
-    
-    PROCESSING PIPELINE (Academic Explanation):
-    ==========================================
-    1. Run YOLO inference to detect people (class 0)
-    2. For each detection, calculate center point of bounding box
-    3. Assign each person to a zone based on their center point
-    4. Calculate status for each zone based on count vs threshold
-    5. Draw visualizations:
-       - Heatmap overlays (semi-transparent zone colors)
-       - Bounding boxes around detected people
-       - Grid lines separating zones
-       - HUD with zone names and counts
-    
-    Args:
-        frame: Input video frame (BGR format)
-        model: Loaded YOLO model
-        threshold: Capacity threshold for zone classification
-        
-    Returns:
-        tuple: (processed_frame, zone_counts, zone_statuses)
-            - processed_frame: Frame with all visualizations
-            - zone_counts: Dict mapping zone index to people count
-            - zone_statuses: Dict mapping zone index to status string
-    """
-    frame_height, frame_width = frame.shape[:2]
-    
-    # Initialize zone counts
-    zone_counts = {0: 0, 1: 0, 2: 0, 3: 0}
-    
-    # Run YOLO inference
-    # classes=[0] filters for 'person' class only
-    results = model(frame, classes=[0], verbose=False)
-    
-    # Process detections
-    detections = []
-    
-    for result in results:
-        boxes = result.boxes
-        for box in boxes:
-            # Get bounding box coordinates
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            confidence = float(box.conf[0])
-            
-            # Calculate center point of bounding box
-            # This is used to determine which zone the person is in
-            cx = (x1 + x2) // 2
-            cy = (y1 + y2) // 2
-            
-            # Determine zone based on center point
-            zone = get_zone(cx, cy, frame_width, frame_height)
-            zone_counts[zone] += 1
-            
-            detections.append({
-                'bbox': (x1, y1, x2, y2),
-                'center': (cx, cy),
-                'zone': zone,
-                'confidence': confidence
-            })
-    
-    # Calculate status for each zone
-    zone_statuses = {}
-    for zone in range(4):
-        zone_statuses[zone] = get_status(zone_counts[zone], threshold)
-    
-    # Draw visualizations
-    # Step 1: Draw heatmap overlays for each zone
-    for zone in range(4):
-        frame = draw_zone_overlay(frame, zone, zone_statuses[zone], 
-                                  frame_width, frame_height)
-    
-    # Step 2: Draw bounding boxes on detected people
-    # Color is based on the zone's current status
-    for detection in detections:
-        x1, y1, x2, y2 = detection['bbox']
-        zone = detection['zone']
-        status = zone_statuses[zone]
-        color = STATUS_COLORS_BGR[status]
-        
-        # Draw bounding box
-        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-        
-        # Draw confidence label
-        label = f"{detection['confidence']:.2f}"
-        cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, color, 2, cv2.LINE_AA)
-    
-    # Step 3: Draw grid lines
-    frame = draw_zone_grid(frame, frame_width, frame_height)
-    
-    # Step 4: Draw HUD for each zone
-    for zone in range(4):
-        frame = draw_zone_hud(frame, zone, zone_counts[zone], 
-                             zone_statuses[zone], frame_width, frame_height)
-    
-    return frame, zone_counts, zone_statuses
-
-
-def generate_instructions(zone_statuses: dict, zone_counts: dict) -> list:
-    """
-    Generate evacuation instructions based on zone statuses.
-    
-    INSTRUCTION LOGIC (Academic Explanation):
-    =========================================
-    Instructions are generated for each zone based on its status:
-    
-    - SAFE: "Status Normal. Monitoring..."
-    - WARNING: "High Density in [Zone]. Slow down entry."
-    - EMERGENCY: "CRITICAL: EVACUATE [Zone] via [Exit]!"
-    
-    Exit assignments are hardcoded:
-    - Zone 1 (Top-Left): North Exit
-    - Zone 2 (Top-Right): East Exit
-    - Zone 3 (Bottom-Left): West Exit
-    - Zone 4 (Bottom-Right): South Exit
-    
-    Args:
-        zone_statuses: Dict mapping zone index to status
-        zone_counts: Dict mapping zone index to people count
-        
-    Returns:
-        list: List of instruction dictionaries with zone, status, message, and count
-    """
-    instructions = []
-    
-    for zone in range(4):
-        status = zone_statuses[zone]
-        zone_name = ZONE_CONFIG[zone]["name"]
-        exit_name = ZONE_CONFIG[zone]["exit"]
-        count = zone_counts[zone]
-        
-        if status == "SAFE":
-            message = f"✅ {zone_name}: Status Normal. Monitoring..."
-        elif status == "WARNING":
-            message = f"⚠️ {zone_name}: High Density Detected. Slow down entry."
-        else:  # EMERGENCY
-            message = f"🚨 CRITICAL: EVACUATE {zone_name} via {exit_name}!"
-        
-        instructions.append({
-            'zone': zone,
-            'status': status,
-            'message': message,
-            'count': count
-        })
-    
-    return instructions
-
-
-# ==============================================================================
-# SECTION 5: MAIN APPLICATION UI
+# SECTION 2: MAIN APPLICATION UI
 # ==============================================================================
 
 def main():
@@ -689,7 +187,7 @@ def main():
             if frame_count % frame_skip != 0:
                 continue
             
-            # Process frame
+            # Process frame using the processor module
             processed_frame, zone_counts, zone_statuses = process_frame(
                 frame, model, threshold
             )
@@ -697,9 +195,9 @@ def main():
             # Convert BGR to RGB for display
             processed_frame_rgb = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
             
-            # Display video frame
+            # Display video frame (FIXED: use width="stretch" instead of use_container_width)
             video_placeholder.image(processed_frame_rgb, channels="RGB", 
-                                   use_container_width=True)
+                                   width="stretch")
             
             # Update progress
             progress = frame_count / total_frames
@@ -793,6 +291,7 @@ def main():
         
     else:
         # Display placeholder when no video is uploaded
+        # FIXED: applied user's CSS fix for justify-content and flex-direction
         with video_col:
             video_placeholder.markdown("""
             <div style="background: linear-gradient(135deg, #1e1e2e, #2d2d3d);
@@ -811,8 +310,5 @@ def main():
             instructions_placeholder.info("🚨 Evacuation instructions will appear here")
 
 
-# ==============================================================================
-# SECTION 6: ENTRY POINT
-# ==============================================================================
 if __name__ == "__main__":
     main()
