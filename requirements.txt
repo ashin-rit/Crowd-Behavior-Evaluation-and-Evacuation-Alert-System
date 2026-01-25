@@ -16,6 +16,10 @@ Pillow>=9.0.0
 
 # Visualization
 plotly>=5.18.0
+
+# Interactive Canvas
+streamlit-drawable-canvas>=0.9.3
+
 # Audio Alerts
 sounddevice>=0.4.6
 scipy>=1.10.0
