@@ -11,40 +11,76 @@ MCA Final Year Project
 """
 
 # ==============================================================================
-# ZONE CONFIGURATION DEFAULTS
+# YOLO MODEL CONFIGURATION
 # ==============================================================================
 
-# Default zone configuration with area in square meters
-# These can be customized by the user at runtime
-DEFAULT_ZONE_CONFIG = {
-    0: {"name": "Zone 1 (Top-Left)", "area": 50, "short": "Zone 1"},
-    1: {"name": "Zone 2 (Top-Right)", "area": 50, "short": "Zone 2"},
-    2: {"name": "Zone 3 (Bottom-Left)", "area": 50, "short": "Zone 3"},
-    3: {"name": "Zone 4 (Bottom-Right)", "area": 50, "short": "Zone 4"}
-}
+# Path to the trained YOLO weights file
+YOLO_MODEL_PATH = 'models/crowdeval_best.pt'
 
 # ==============================================================================
-# EXIT CONFIGURATION DEFAULTS
+# POLYGON ZONE CONFIGURATION DEFAULTS
 # ==============================================================================
 
-# Default exit configuration (user can add 1-8 exits)
-# Each exit has: name, direction, capacity, and associated zones
-DEFAULT_EXIT_CONFIG = [
+# Default polygon zones — percentage-based coordinates (0.0 to 1.0)
+# These match the original 2x2 grid layout as a starting point
+DEFAULT_POLYGON_ZONES = [
+    {
+        "id": "zone_0",
+        "name": "Zone A (Top-Left)",
+        "area": 50,  # square meters
+        "polygon": [(0.0, 0.0), (0.5, 0.0), (0.5, 0.5), (0.0, 0.5)],
+    },
+    {
+        "id": "zone_1",
+        "name": "Zone B (Top-Right)",
+        "area": 50,
+        "polygon": [(0.5, 0.0), (1.0, 0.0), (1.0, 0.5), (0.5, 0.5)],
+    },
+    {
+        "id": "zone_2",
+        "name": "Zone C (Bottom-Left)",
+        "area": 50,
+        "polygon": [(0.0, 0.5), (0.5, 0.5), (0.5, 1.0), (0.0, 1.0)],
+    },
+    {
+        "id": "zone_3",
+        "name": "Zone D (Bottom-Right)",
+        "area": 50,
+        "polygon": [(0.5, 0.5), (1.0, 0.5), (1.0, 1.0), (0.5, 1.0)],
+    },
+]
+
+# Maximum number of zones user can create
+MAX_ZONES = 12
+MIN_ZONES = 1
+
+# ==============================================================================
+# SPATIAL EXIT POINT DEFAULTS
+# ==============================================================================
+
+# Exit points — percentage-based coordinates for resolution independence
+DEFAULT_EXIT_POINTS = [
     {
         "id": "exit_0",
         "name": "Main Gate",
-        "direction": "North",
-        "capacity": 20,
-        "zones": [0, 1]  # Top zones exit via North
+        "x_pct": 0.5,
+        "y_pct": 0.0,
+        "capacity": 20,   # people per minute
+        "status": "OPEN",  # OPEN or BLOCKED
     },
     {
         "id": "exit_1",
         "name": "South Exit",
-        "direction": "South",
+        "x_pct": 0.5,
+        "y_pct": 1.0,
         "capacity": 20,
-        "zones": [2, 3]  # Bottom zones exit via South
-    }
+        "status": "OPEN",
+    },
 ]
+
+# Maximum number of exits user can configure
+MAX_EXITS = 8
+MIN_EXITS = 1
 
 # ==============================================================================
 # DENSITY THRESHOLDS (people per square meter)
@@ -97,36 +133,27 @@ OVERLAY_ALPHA = {
 
 EXIT_STATUS_COLORS = {
     "OPEN": "#00FF00",      # Green - safe to use
-    "CROWDED": "#FFA500",   # Orange - use with caution
     "BLOCKED": "#FF0000"    # Red - do not use
+}
+
+EXIT_STATUS_COLORS_BGR = {
+    "OPEN": (0, 255, 0),
+    "BLOCKED": (0, 0, 255),
 }
 
 # ==============================================================================
 # UI CONFIGURATION
 # ==============================================================================
 
-# Maximum number of exits user can configure
-MAX_EXITS = 8
-
-# Minimum number of exits required
-MIN_EXITS = 1
-
-# Default number of exits
-DEFAULT_NUM_EXITS = 2
-
 # Zone area limits (square meters)
 MIN_ZONE_AREA = 10
 MAX_ZONE_AREA = 500
 DEFAULT_ZONE_AREA = 50
 
-# Direction options for exits
-EXIT_DIRECTIONS = ["North", "South", "East", "West", "Northeast", "Northwest", "Southeast", "Southwest"]
-
-# Add these constants to your existing config.py
-
-# ============================================
+# ==============================================================================
 # EMERGENCY TIMER CONFIGURATION
-# ============================================
+# ==============================================================================
+
 TIMER_THRESHOLDS = {
     'WARNING': 30,      # 0-30 seconds: Yellow
     'CRITICAL': 60,     # 30-60 seconds: Orange
