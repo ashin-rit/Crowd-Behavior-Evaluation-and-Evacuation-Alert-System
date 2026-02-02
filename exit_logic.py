@@ -1,148 +1,124 @@
 """
 ================================================================================
-EXIT LOGIC MODULE
+EXIT LOGIC MODULE — SPATIAL EXIT POINTS
 ================================================================================
-Handles exit configuration, zone-to-exit mapping, and exit status calculation.
+Manages spatial exit points with percentage-based coordinates.
+Computes nearest-exit routing using Euclidean distance from zone centroids.
 
 Author: Ashin Saji
 MCA Final Year Project
 ================================================================================
 """
 
-from typing import List, Dict, Optional
+import math
+from typing import List, Dict, Tuple, Optional
 
 
-def get_zone_exit_mapping(exit_config: List[Dict]) -> Dict[int, Dict]:
+# ==============================================================================
+# COORDINATE CONVERSION
+# ==============================================================================
+
+def get_exit_pixel_coords(exit_point: Dict, frame_w: int, frame_h: int) -> Tuple[int, int]:
     """
-    Generate primary and secondary exit mapping for each zone.
-    
-    MAPPING LOGIC:
-    ==============
-    Each zone is mapped to:
-    1. Primary Exit - First exit that includes this zone
-    2. Secondary Exit - Next available exit (fallback if primary is unsafe)
-    
-    This enables intelligent routing during evacuations:
-    - If primary exit is blocked, redirect to secondary
-    - Reduces congestion at single exit points
-    
+    Convert an exit point's percentage coordinates to pixel coordinates.
+
     Args:
-        exit_config: List of exit configuration dictionaries
-                    Each has: id, name, direction, capacity, zones
-        
+        exit_point: Exit dict with 'x_pct' and 'y_pct'
+        frame_w: Frame width in pixels
+        frame_h: Frame height in pixels
+
     Returns:
-        dict: Zone index mapped to {primary: exit_index, secondary: exit_index}
-              exit_index is None if no exit is available
+        (x, y) in pixel coordinates
     """
-    mapping = {}
-    
-    for zone in range(4):
-        primary = None
-        secondary = None
-        
-        # Find exits that serve this zone
-        for idx, exit_info in enumerate(exit_config):
-            if zone in exit_info.get("zones", []):
-                if primary is None:
-                    primary = idx
-                elif secondary is None:
-                    secondary = idx
-                    break
-        
-        mapping[zone] = {
-            "primary": primary,
-            "secondary": secondary
-        }
-    
-    return mapping
+    x = int(exit_point["x_pct"] * frame_w)
+    y = int(exit_point["y_pct"] * frame_h)
+    return (x, y)
 
 
-def get_exit_status(exit_config: List[Dict], zone_statuses: Dict[int, str]) -> Dict[int, str]:
+# ==============================================================================
+# EXIT STATUS MANAGEMENT
+# ==============================================================================
+
+def get_exit_statuses(exit_points: List[Dict]) -> Dict[str, str]:
     """
-    Determine exit status based on the statuses of associated zones.
-    
-    EXIT STATUS LOGIC:
-    ==================
-    The status of an exit depends on the conditions in its associated zones:
-    
-    1. OPEN (Green)
-       - All associated zones are SAFE or MODERATE
-       - Exit can be used normally
-       
-    2. CROWDED (Orange)
-       - At least one zone is in WARNING status
-       - Exit usable but with caution, consider alternatives
-       
-    3. BLOCKED (Red)
-       - At least one zone is in EMERGENCY status
-       - Exit should NOT be used, dangerous congestion
-    
+    Return current status of all exit points.
+
+    Status is managed by the user via configuration (OPEN / BLOCKED).
+
     Args:
-        exit_config: List of exit configurations
-        zone_statuses: Dict mapping zone index to status string
-        
+        exit_points: List of exit point dicts
+
     Returns:
-        dict: Exit index mapped to status ("OPEN", "CROWDED", "BLOCKED")
+        Dict mapping exit_id -> status string
     """
-    exit_statuses = {}
-    
-    for idx, exit_info in enumerate(exit_config):
-        zones = exit_info.get("zones", [])
-        zone_stats = [zone_statuses.get(z, "SAFE") for z in zones]
-        
-        # Priority: EMERGENCY > WARNING > others
-        if "EMERGENCY" in zone_stats:
-            exit_statuses[idx] = "BLOCKED"
-        elif "WARNING" in zone_stats:
-            exit_statuses[idx] = "CROWDED"
-        else:
-            exit_statuses[idx] = "OPEN"
-    
-    return exit_statuses
+    return {ep["id"]: ep.get("status", "OPEN") for ep in exit_points}
 
 
-def get_best_exit_for_zone(zone: int, exit_config: List[Dict], 
-                           zone_exit_mapping: Dict, exit_statuses: Dict) -> Optional[Dict]:
+# ==============================================================================
+# NEAREST EXIT ROUTING
+# ==============================================================================
+
+def find_nearest_open_exit(zone_centroid_px: Tuple[int, int],
+                            exit_points: List[Dict],
+                            frame_w: int, frame_h: int) -> Optional[Dict]:
     """
-    Find the best available exit for a given zone.
-    
-    Priority:
-    1. Primary exit if OPEN
-    2. Secondary exit if OPEN
-    3. Primary exit if CROWDED (better than nothing)
-    4. Secondary exit if CROWDED
-    5. None if all exits are BLOCKED
-    
+    Find the nearest OPEN exit to a given zone centroid.
+
+    Only considers exits with status == "OPEN".
+    Uses Euclidean distance for proximity calculation.
+
     Args:
-        zone: Zone index (0-3)
-        exit_config: List of exit configurations
-        zone_exit_mapping: Mapping from zone to primary/secondary exits
-        exit_statuses: Current status of each exit
-        
+        zone_centroid_px: (cx, cy) centroid of the zone in pixel coords
+        exit_points: List of exit point dicts
+        frame_w: Frame width in pixels
+        frame_h: Frame height in pixels
+
     Returns:
-        dict: Best exit configuration, or None if all blocked
+        The nearest open exit dict, or None if no exits are open.
     """
-    mapping = zone_exit_mapping.get(zone, {})
-    primary_idx = mapping.get("primary")
-    secondary_idx = mapping.get("secondary")
-    
-    # Check primary exit first
-    if primary_idx is not None:
-        if exit_statuses.get(primary_idx) == "OPEN":
-            return exit_config[primary_idx]
-    
-    # Check secondary exit
-    if secondary_idx is not None:
-        if exit_statuses.get(secondary_idx) == "OPEN":
-            return exit_config[secondary_idx]
-    
-    # Fall back to crowded exits (better than blocked)
-    if primary_idx is not None:
-        if exit_statuses.get(primary_idx) == "CROWDED":
-            return exit_config[primary_idx]
-    
-    if secondary_idx is not None:
-        if exit_statuses.get(secondary_idx) == "CROWDED":
-            return exit_config[secondary_idx]
-    
-    return None
+    cx, cy = zone_centroid_px
+    best_exit = None
+    best_distance = float("inf")
+
+    for ep in exit_points:
+        if ep.get("status", "OPEN") != "OPEN":
+            continue
+
+        ex, ey = get_exit_pixel_coords(ep, frame_w, frame_h)
+        dist = math.sqrt((cx - ex) ** 2 + (cy - ey) ** 2)
+
+        if dist < best_distance:
+            best_distance = dist
+            best_exit = ep
+
+    return best_exit
+
+
+def find_nearest_exit_with_capacity(zone_centroid_px: Tuple[int, int],
+                                     exit_points: List[Dict],
+                                     frame_w: int, frame_h: int,
+                                     zone_count: int = 0) -> Optional[Dict]:
+    """
+    Find the nearest OPEN exit, preferring exits with sufficient capacity.
+
+    If the nearest exit's capacity is less than the zone's person count,
+    it still returns that exit but logs a warning via the 'capacity_warning'
+    key in the returned dict.
+
+    Args:
+        zone_centroid_px: (cx, cy) centroid of the zone in pixel coords
+        exit_points: List of exit point dicts
+        frame_w: Frame width in pixels
+        frame_h: Frame height in pixels
+        zone_count: Number of people in the zone
+
+    Returns:
+        The nearest open exit dict (with optional 'capacity_warning'), or None.
+    """
+    nearest = find_nearest_open_exit(zone_centroid_px, exit_points, frame_w, frame_h)
+
+    if nearest is not None and zone_count > nearest.get("capacity", 20):
+        nearest = dict(nearest)  # Don't mutate original
+        nearest["capacity_warning"] = True
+
+    return nearest
