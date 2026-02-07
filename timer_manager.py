@@ -80,6 +80,22 @@ class EmergencyTimerManager:
             return self.flash_state.get(zone_id, True)
         return True  # Always show for non-severe
     
+    def get_timer_data(self, zone_id):
+        """Get comprehensive timer data for a zone.
+
+        Returns a dict with elapsed, formatted_time, severity, and flash
+        if the zone has an active timer; otherwise returns None.
+        """
+        if zone_id not in self.zone_timers:
+            return None
+        self.update_timer(zone_id)
+        return {
+            'elapsed': self.get_elapsed(zone_id),
+            'formatted_time': self.get_formatted_time(zone_id),
+            'severity': self.get_severity_level(zone_id),
+            'flash': self.should_flash(zone_id),
+        }
+
     def get_all_active_timers(self):
         """Get all active emergency timers"""
         return list(self.zone_timers.keys())
