@@ -10,11 +10,11 @@ MCA Final Year Project
 """
 
 import streamlit as st
-from ultralytics import YOLO
+from config import YOLO_MODEL_PATH
 
 
 @st.cache_resource
-def load_yolo_model(model_path: str = 'yolov8n.pt') -> YOLO:
+def load_yolo_model(model_path: str = YOLO_MODEL_PATH) -> YOLO:
     """
     Load the YOLOv8 model with Streamlit caching.
     
@@ -23,15 +23,15 @@ def load_yolo_model(model_path: str = 'yolov8n.pt') -> YOLO:
     
     Args:
         model_path: Path to the YOLO model weights file.
-                   Defaults to 'yolov8n.pt' (nano model for speed).
+                   Defaults to the custom trained model in config.YOLO_MODEL_PATH.
     
     Returns:
         YOLO: Loaded YOLOv8 model ready for inference.
     
     Notes:
-        - YOLOv8 nano is used for balance between speed and accuracy
-        - Model weights are auto-downloaded on first run if not present
-        - Class 0 in COCO dataset is 'person'
+        - Uses custom trained weights optimized for crowd detection
+        - Model weights should be located in the models/ directory
+        - Class 0 in typical YOLO is 'person'
     """
     model = YOLO(model_path)
     return model
