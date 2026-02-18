@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: transparent;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+
+        #toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #toolbar button {
+            padding: 6px 14px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            background: #1e2139;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        #toolbar button:hover {
+            background: #2d3050;
+            border-color: #06B6D4;
+            color: #fff;
+        }
+
+        #toolbar button.primary {
+            background: #06B6D4;
+            color: #fff;
+            border-color: #06B6D4;
+            font-weight: 600;
+        }
+
+        #toolbar button.primary:hover {
+            background: #0891b2;
+        }
+
+        #toolbar .hint {
+            font-size: 12px;
+            color: #888;
+            margin-left: 12px;
+        }
+
+        canvas {
+            border: 2px solid #333;
+            border-radius: 8px;
+            cursor: crosshair;
+            display: block;
+        }
+
+        #status {
+            font-size: 12px;
+            color: #06B6D4;
+            margin-top: 6px;
+            min-height: 18px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toolbar">
+        <button onclick="undo()">Undo</button>
+        <button onclick="clearAll()">Clear All</button>
+        <button class="primary" onclick="applyData()">&#10004; Done &mdash; Apply</button>
+        <span class="hint" id="hint"></span>
+    </div>
+    <canvas id="editor"></canvas>
+    <div id="status"></div>
+
+    <script>
+        /* === Streamlit Component Communication === */
+        (function () {
+            function sendMsg(type, data) {
+                window.parent.postMessage(
+                    Object.assign({ isStreamlitMessage: true, type: type, apiVersion: 1 }, data || {}), "*"
+                );
+            }
+            window.Streamlit = {
+                setComponentReady: function () { sendMsg("streamlit:componentReady"); },
+                setComponentValue: function (v) { sendMsg("streamlit:setComponentValue", { value: v }); },
+                setFrameHeight: function (h) {
+                    sendMsg("streamlit:setFrameHeight", { height: h || document.body.scrollHeight });
+                }
+            };
+            var initialized = false;
+            window.addEventListener("message", function (ev) {
+                if (ev.data && ev.data.type === "streamlit:render") {
+                    if (!initialized) { initialized = true; window.initCanvas(ev.data.args); }
+                    Streamlit.setFrameHeight();
+                }
+            });
+            Streamlit.setComponentReady();
+        })();
+
+        /* === Canvas Logic === */
+        var MODE, W, H, bgUrl;
+        var existingZones = [], existingExits = [];
+        var polygons = [], currentPoly = [], exitMarkers = [];
+        var canvas, ctx, hint, statusEl;
+        var COLORS = ['#00FFFF', '#FFD700', '#00FF00', '#FF00FF', '#FFFF00', '#FF8000', '#8000FF', '#00FF80'];
+
+        window.initCanvas = function (args) {
+            MODE = args.mode || 'zones'; W = args.canvas_w || 720; H = args.canvas_h || 405;
+            bgUrl = args.bg_url || '';
+            existingZones = args.existing_zones || []; existingExits = args.existing_exits || [];
+            canvas = document.getElementById('editor'); ctx = canvas.getContext('2d');
+            hint = document.getElementById('hint'); statusEl = document.getElementById('status');
+            canvas.width = W; canvas.height = H;
+            hint.textContent = MODE === 'zones'
+                ? 'Click to add vertices. Double-click to close polygon. Click Done when finished.'
+                : 'Click to place exit points. Click Done when finished.';
+            canvas.addEventListener('click', function (e) {
+                var r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+                if (MODE === 'zones') {
+                    currentPoly.push({ x: x, y: y });
+                    statusEl.textContent = currentPoly.length + ' vertices \u2014 double-click to close';
+                } else {
+                    exitMarkers.push({ x: x, y: y });
+                    statusEl.textContent = exitMarkers.length + ' exit(s) placed';
+                    autoSync();
+                }
+                redraw();
+            });
+            canvas.addEventListener('dblclick', function (e) {
+                e.preventDefault();
+                if (MODE === 'zones' && currentPoly.length >= 3) {
+                    polygons.push(currentPoly.slice());
+                    currentPoly = [];
+                    statusEl.textContent = polygons.length + ' polygon(s) completed \u2014 click Done to apply';
+                    redraw();
+                    autoSync();
+                }
+            });
+            drawBackground();
+        };
+
+        function drawBackground() {
+            if (!bgUrl) return;
+            var img = new Image();
+            img.onload = function () { ctx.drawImage(img, 0, 0, W, H); drawOverlays(); drawCurrent(); Streamlit.setFrameHeight(); };
+            img.src = bgUrl;
+        }
+        function drawOverlays() {
+            existingZones.forEach(function (z, i) {
+                var poly = z.polygon || []; if (poly.length < 3) return;
+                ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = COLORS[i % COLORS.length];
+                ctx.beginPath();
+                poly.forEach(function (p, j) { var px = p[0] * W, py = p[1] * H; j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+                ctx.closePath(); ctx.fill(); ctx.restore();
+                ctx.strokeStyle = COLORS[i % COLORS.length]; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                poly.forEach(function (p, j) { var px = p[0] * W, py = p[1] * H; j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+                ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+            });
+            existingExits.forEach(function (ep) {
+                var ex = ep.x_pct * W, ey = ep.y_pct * H, c = ep.status === 'OPEN' ? '#00FF00' : '#FF0000';
+                ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+                ctx.beginPath(); ctx.arc(ex, ey, 12, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+            });
+        }
+        function drawCurrent() {
+            if (MODE === 'zones') {
+                polygons.forEach(function (poly, i) {
+                    var c = COLORS[(existingZones.length + i) % COLORS.length];
+                    ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = c; ctx.beginPath();
+                    poly.forEach(function (p, j) { j === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); });
+                    ctx.closePath(); ctx.fill(); ctx.restore();
+                    ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.beginPath();
+                    poly.forEach(function (p, j) { j === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); });
+                    ctx.closePath(); ctx.stroke();
+                    poly.forEach(function (p) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); });
+                    var cx = poly.reduce(function (s, p) { return s + p.x; }, 0) / poly.length;
+                    var cy = poly.reduce(function (s, p) { return s + p.y; }, 0) / poly.length;
+                    ctx.fillStyle = '#fff'; ctx.font = '13px Inter,sans-serif';
+                    ctx.fillText('Zone ' + (existingZones.length + i + 1), cx - 20, cy + 4);
+                });
+                if (currentPoly.length > 0) {
+                    ctx.strokeStyle = '#06B6D4'; ctx.lineWidth = 2; ctx.beginPath();
+                    currentPoly.forEach(function (p, j) { j === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); });
+                    ctx.stroke();
+                    currentPoly.forEach(function (p) {
+                        ctx.fillStyle = '#06B6D4'; ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
+                        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+                    });
+                }
+            } else {
+                exitMarkers.forEach(function (p, i) {
+                    ctx.fillStyle = '#00FF00'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Inter,sans-serif';
+                    ctx.fillText('E' + (existingExits.length + i + 1), p.x - 8, p.y + 4);
+                });
+            }
+        }
+        function redraw() { ctx.clearRect(0, 0, W, H); drawBackground(); }
+
+        window.undo = function () {
+            if (MODE === 'zones') { if (currentPoly.length > 0) currentPoly.pop(); else if (polygons.length > 0) currentPoly = polygons.pop(); }
+            else { exitMarkers.pop(); }
+            redraw();
+            autoSync();
+        };
+        window.clearAll = function () {
+            polygons = []; currentPoly = []; exitMarkers = []; redraw();
+            autoSync();
+        };
+        window.applyData = function () {
+            var payload;
+            if (MODE === 'zones') {
+                if (polygons.length === 0) { statusEl.textContent = '\u26A0 Draw at least one polygon first.'; statusEl.style.color = '#FFD700'; return; }
+                payload = {
+                    type: 'zones', data: polygons.map(function (poly) {
+                        return poly.map(function (p) { return [Math.round((p.x / W) * 10000) / 10000, Math.round((p.y / H) * 10000) / 10000]; });
+                    })
+                };
+            } else {
+                if (exitMarkers.length === 0) { statusEl.textContent = '\u26A0 Place at least one exit first.'; statusEl.style.color = '#FFD700'; return; }
+                payload = {
+                    type: 'exits', data: exitMarkers.map(function (p) {
+                        return { x_pct: Math.round((p.x / W) * 10000) / 10000, y_pct: Math.round((p.y / H) * 10000) / 10000 };
+                    })
+                };
+            }
+            Streamlit.setComponentValue(payload);
+            statusEl.textContent = '\u2713 Sync ok';
+            statusEl.style.color = '#06B6D4';
+        };
+
+        window.autoSync = function () {
+            var payload;
+            if (MODE === 'zones') {
+                if (polygons.length === 0 && currentPoly.length === 0) return;
+                payload = {
+                    type: 'zones', data: polygons.map(function (poly) {
+                        return poly.map(function (p) { return [Math.round((p.x / W) * 10000) / 10000, Math.round((p.y / H) * 10000) / 10000]; });
+                    })
+                };
+            } else {
+                if (exitMarkers.length === 0) return;
+                payload = {
+                    type: 'exits', data: exitMarkers.map(function (p) {
+                        return { x_pct: Math.round((p.x / W) * 10000) / 10000, y_pct: Math.round((p.y / H) * 10000) / 10000 };
+                    })
+                };
+            }
+            Streamlit.setComponentValue(payload);
+        };
+    </script>
+</body>
+
+</html>
