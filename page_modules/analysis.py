@@ -1,9 +1,9 @@
 """
 ================================================================================
-LIVE ANALYSIS PAGE (REDESIGNED + BACKEND INTEGRATED)
+LIVE ANALYSIS PAGE — DYNAMIC POLYGON ZONES & SPATIAL EXITS
 ================================================================================
-Real-time crowd monitoring with YOLO detection, zone analysis,
-exit status, evacuation instructions, and audio alerts.
+Real-time crowd monitoring with YOLO detection, dynamic polygon zones,
+spatial exit routing, evacuation arrows, and audio alerts.
 
 Author: Ashin Saji
 ================================================================================
@@ -18,17 +18,17 @@ import sys
 import time
 from datetime import datetime
 
-# Add parent dir to path so we can import backend modules
+# Add parent dir to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models import load_yolo_model
-from visualization import process_frame, draw_zone_grid, draw_zone_overlay, draw_bounding_boxes
-from zone_logic import get_zone_boundaries, calculate_density, get_status_by_density
-from exit_logic import get_zone_exit_mapping, get_exit_status, get_best_exit_for_zone
-from evacuation import generate_evacuation_instructions, get_global_alert_level, get_summary_message
+from visualization import process_frame
+from zone_logic import get_global_alert_level
+from evacuation import generate_evacuation_instructions, get_global_alert_level
+from exit_logic import get_exit_statuses
 from audio_alerts import get_audio_system
 from timer_manager import EmergencyTimerManager
-from config import DEFAULT_ZONE_CONFIG, DEFAULT_EXIT_CONFIG, DENSITY_THRESHOLDS
+from config import DEFAULT_POLYGON_ZONES, DEFAULT_EXIT_POINTS
 
 
 def _get_status_class(status):
@@ -56,23 +56,12 @@ def _get_exit_icon(status):
     """Return exit status icon HTML."""
     if status == "OPEN":
         return '<i class="ph-fill ph-check-circle" style="color: var(--status-success);"></i>'
-    elif status == "CROWDED":
-        return '<i class="ph-fill ph-warning" style="color: var(--status-warning);"></i>'
     elif status == "BLOCKED":
         return '<i class="ph-fill ph-warning-octagon" style="color: var(--status-danger);"></i>'
     return '<i class="ph-fill ph-circle" style="color: var(--text-tertiary);"></i>'
 
 
-def _get_exit_border_color(status):
-    """Return border color for exit status."""
-    return {
-        "OPEN": "var(--status-success)",
-        "CROWDED": "var(--status-warning)",
-        "BLOCKED": "var(--status-danger)"
-    }.get(status, "var(--border-color)")
-
-
-def _build_zone_card_html(zone_idx, zone_name, status, count, density, trend_arrow, trend_color):
+def _build_zone_card_html(zone_id, zone_name, status, count, density, trend_arrow, trend_color):
     """Build HTML for a single zone status card."""
     status_class = _get_status_class(status)
     border_color = {
@@ -83,9 +72,9 @@ def _build_zone_card_html(zone_idx, zone_name, status, count, density, trend_arr
     }.get(status, "var(--border-color)")
 
     return (
-        f'<div class="glass-card" style="border-left: 4px solid {border_color};">'
+        f'<div class="glass-card" style="border-left: 4px solid {border_color}; margin-bottom: 0.75rem;">'
         f'<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">'
-        f'<strong style="color: var(--text-primary); font-size: 1.125rem;">{zone_name}</strong>'
+        f'<strong style="color: var(--text-primary); font-size: 1rem;">{zone_name}</strong>'
         f'<span class="status-badge {status_class}">{status}</span></div>'
         f'<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">'
         f'<div><p style="color: var(--text-tertiary); font-size: 0.8125rem; margin-bottom: 0.25rem;">Count</p>'
@@ -99,7 +88,7 @@ def _build_zone_card_html(zone_idx, zone_name, status, count, density, trend_arr
 
 
 def render():
-    """Render the redesigned live analysis page"""
+    """Render the live analysis page."""
 
     # Page Header
     st.markdown("""
@@ -113,7 +102,7 @@ def render():
     </div>
     """, unsafe_allow_html=True)
 
-    # Check if video is available
+    # Check video
     has_video = 'video_file' in st.session_state and st.session_state.video_file is not None
 
     if not has_video:
@@ -128,7 +117,7 @@ def render():
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("Go to Configuration", use_container_width=True, type="primary"):
+        if st.button("Go to Configuration", width='stretch', type="primary"):
             st.session_state.current_page = 'config'
             st.rerun()
         return
@@ -149,13 +138,13 @@ def render():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        start_clicked = st.button("Start", use_container_width=True, type="primary")
+        start_clicked = st.button("Start", width='stretch', type="primary")
     with col2:
-        pause_clicked = st.button("Pause", use_container_width=True)
+        pause_clicked = st.button("Pause", width='stretch')
     with col3:
-        stop_clicked = st.button("Stop", use_container_width=True)
+        stop_clicked = st.button("Stop", width='stretch')
     with col4:
-        snapshot_clicked = st.button("Snapshot", use_container_width=True)
+        snapshot_clicked = st.button("Snapshot", width='stretch')
 
     if start_clicked:
         st.session_state.analysis_running = True
@@ -183,7 +172,6 @@ def render():
         st.markdown("<br>", unsafe_allow_html=True)
         alerts_placeholder = st.empty()
 
-    # If not running, show static placeholder
     if not st.session_state.analysis_running:
         with video_placeholder.container():
             st.markdown("""
@@ -203,7 +191,6 @@ def render():
             </div>
             """, unsafe_allow_html=True)
 
-        # Show last known data if available
         _render_static_panels(zone_status_placeholder, stats_placeholder,
                               exit_placeholder, alerts_placeholder)
         return
@@ -216,21 +203,25 @@ def render():
     )
 
 
+# ==============================================================================
+# STATIC PANELS (when analysis is not running)
+# ==============================================================================
+
 def _render_static_panels(zone_placeholder, stats_placeholder,
                            exit_placeholder, alerts_placeholder):
     """Render static/last-known panels when analysis is not running."""
-    zone_names = {0: "Zone 1 (NW)", 1: "Zone 2 (NE)", 2: "Zone 3 (SW)", 3: "Zone 4 (SE)"}
+    polygon_zones = st.session_state.get('polygon_zones', [])
 
-    # Check if we have last-known data
     if 'last_zone_counts' in st.session_state:
         zone_counts = st.session_state.last_zone_counts
-        zone_densities = st.session_state.get('last_zone_densities', {z: 0.0 for z in range(4)})
-        zone_statuses = st.session_state.get('last_zone_statuses', {z: "SAFE" for z in range(4)})
+        zone_densities = st.session_state.get('last_zone_densities', {})
+        zone_statuses = st.session_state.get('last_zone_statuses', {})
     else:
-        zone_counts = {z: 0 for z in range(4)}
-        zone_densities = {z: 0.0 for z in range(4)}
-        zone_statuses = {z: "SAFE" for z in range(4)}
+        zone_counts = {z["id"]: 0 for z in polygon_zones}
+        zone_densities = {z["id"]: 0.0 for z in polygon_zones}
+        zone_statuses = {z["id"]: "SAFE" for z in polygon_zones}
 
+    # Zone cards
     with zone_placeholder.container():
         st.markdown("""
         <h3 style="color: var(--text-primary); margin-bottom: 1rem; font-family: 'Space Grotesk', sans-serif;">
@@ -238,27 +229,43 @@ def _render_static_panels(zone_placeholder, stats_placeholder,
         </h3>
         """, unsafe_allow_html=True)
 
-        zcol1, zcol2 = st.columns(2)
-        for z in range(4):
-            col = zcol1 if z % 2 == 0 else zcol2
+        cols = st.columns(min(len(polygon_zones), 2))
+        for i, zone in enumerate(polygon_zones):
+            zid = zone["id"]
+            col = cols[i % len(cols)]
             with col:
                 st.markdown(_build_zone_card_html(
-                    z, zone_names[z], zone_statuses[z],
-                    zone_counts[z], zone_densities[z], "→", "var(--text-tertiary)"
+                    zid, zone["name"],
+                    zone_statuses.get(zid, "SAFE"),
+                    zone_counts.get(zid, 0),
+                    zone_densities.get(zid, 0.0),
+                    "→", "var(--text-tertiary)"
                 ), unsafe_allow_html=True)
-                if z < 2:
-                    st.markdown("<br>", unsafe_allow_html=True)
 
-    _render_stats_panel(stats_placeholder, zone_counts, zone_densities, zone_statuses)
+    _render_stats_panel(stats_placeholder, zone_counts, zone_densities, zone_statuses, polygon_zones)
     _render_exit_panel(exit_placeholder)
-    _render_alerts_panel(alerts_placeholder, zone_statuses, zone_counts)
+    _render_alerts_panel(alerts_placeholder, zone_statuses, zone_counts, polygon_zones)
 
 
-def _render_stats_panel(placeholder, zone_counts, zone_densities, zone_statuses):
+# ==============================================================================
+# STATS PANEL
+# ==============================================================================
+
+def _render_stats_panel(placeholder, zone_counts, zone_densities, zone_statuses, polygon_zones=None):
     """Render the overall statistics panel."""
     total = sum(zone_counts.values())
-    avg_density = sum(zone_densities.values()) / 4 if zone_densities else 0
-    peak_zone = max(zone_densities, key=zone_densities.get, default=0)
+    num_zones = len(zone_densities) if zone_densities else 1
+    avg_density = sum(zone_densities.values()) / num_zones if zone_densities else 0
+
+    # Find peak zone name
+    peak_zone_id = max(zone_densities, key=zone_densities.get, default="")
+    peak_zone_name = peak_zone_id
+    if polygon_zones:
+        for z in polygon_zones:
+            if z["id"] == peak_zone_id:
+                peak_zone_name = z["name"]
+                break
+
     global_status = get_global_alert_level(zone_statuses)
     status_class = _get_status_class(global_status)
 
@@ -279,7 +286,7 @@ def _render_stats_panel(placeholder, zone_counts, zone_densities, zone_statuses)
             '<div style="background: var(--bg-tertiary); padding: 0.875rem; border-radius: 10px;'
             ' border: 1px solid var(--border-color);">'
             '<p style="color: var(--text-tertiary); font-size: 0.8125rem; margin-bottom: 0.25rem;">Peak Zone</p>'
-            f'<p style="color: var(--text-primary); font-size: 1.5rem; font-weight: 600;">Zone {peak_zone + 1}</p></div>'
+            f'<p style="color: var(--text-primary); font-size: 1.25rem; font-weight: 600;">{peak_zone_name}</p></div>'
             '<div style="background: var(--bg-tertiary); padding: 0.875rem; border-radius: 10px;'
             ' border: 1px solid var(--border-color);">'
             '<p style="color: var(--text-tertiary); font-size: 0.8125rem; margin-bottom: 0.25rem;">Status</p>'
@@ -289,28 +296,30 @@ def _render_stats_panel(placeholder, zone_counts, zone_densities, zone_statuses)
         )
 
 
+# ==============================================================================
+# EXIT PANEL
+# ==============================================================================
+
 def _render_exit_panel(placeholder):
     """Render the exit status panel."""
-    exit_config = st.session_state.get('exit_config', DEFAULT_EXIT_CONFIG)
-    zone_statuses = st.session_state.get('last_zone_statuses', {z: "SAFE" for z in range(4)})
-    exit_statuses = get_exit_status(exit_config, zone_statuses)
+    exit_points = st.session_state.get('exit_points', [])
+    exit_statuses = get_exit_statuses(exit_points)
 
     exit_cards_html = ""
-    for idx, exit_info in enumerate(exit_config):
-        status = exit_statuses.get(idx, "OPEN")
+    for ep in exit_points:
+        status = exit_statuses.get(ep["id"], "OPEN")
         icon = _get_exit_icon(status)
-        border = _get_exit_border_color(status)
-        zone_list = ", ".join([f"Zone {z+1}" for z in exit_info.get("zones", [])])
-        name = exit_info.get('name', f'Exit {idx+1}')
-        direction = exit_info.get('direction', '')
+        border = "var(--status-success)" if status == "OPEN" else "var(--status-danger)"
+        name = ep.get("name", "Exit")
+        capacity = ep.get("capacity", 20)
 
         exit_cards_html += (
             f'<div style="background: var(--bg-tertiary); padding: 0.875rem; border-radius: 10px;'
             f' border-left: 3px solid {border}; display: flex;'
             f' justify-content: space-between; align-items: center;">'
-            f'<div><strong style="color: var(--text-primary);">{name} {direction}</strong>'
+            f'<div><strong style="color: var(--text-primary);">{name}</strong>'
             f'<p style="color: var(--text-tertiary); font-size: 0.8125rem; margin: 0.25rem 0 0 0;">'
-            f'{zone_list}</p></div>'
+            f'Capacity: {capacity}/min</p></div>'
             f'<span style="font-size: 1.5rem;">{icon}</span></div>'
         )
 
@@ -326,13 +335,20 @@ def _render_exit_panel(placeholder):
         )
 
 
-def _render_alerts_panel(placeholder, zone_statuses, zone_counts):
+# ==============================================================================
+# ALERTS PANEL
+# ==============================================================================
+
+def _render_alerts_panel(placeholder, zone_statuses, zone_counts, polygon_zones=None):
     """Render the alerts and evacuation instructions panel."""
     global_status = get_global_alert_level(zone_statuses)
-    summary = get_summary_message(zone_statuses, zone_counts)
+
+    zones = polygon_zones or st.session_state.get('polygon_zones', [])
+    zone_lookup = {z["id"]: z.get("name", z["id"]) for z in zones}
 
     # Find zones with warnings or emergencies
-    alert_zones = [z for z in range(4) if zone_statuses.get(z) in ("WARNING", "EMERGENCY")]
+    alert_zones = [(zid, s) for zid, s in zone_statuses.items()
+                   if s in ("WARNING", "EMERGENCY")]
 
     alert_color = {
         "SAFE": "var(--status-success)",
@@ -343,16 +359,17 @@ def _render_alerts_panel(placeholder, zone_statuses, zone_counts):
 
     alert_html = ""
     if alert_zones:
-        for z in alert_zones:
-            status = zone_statuses[z]
+        for zid, status in alert_zones:
+            zone_name = zone_lookup.get(zid, zid)
+            count = zone_counts.get(zid, 0)
             color = "var(--status-danger)" if status == "EMERGENCY" else "var(--status-warning)"
             bg = "rgba(239, 68, 68, 0.1)" if status == "EMERGENCY" else "rgba(245, 158, 11, 0.1)"
             alert_html += (
                 f'<div style="background: {bg}; padding: 1rem; border-radius: 8px;'
                 f' border: 1px solid {color}; margin-bottom: 0.75rem;">'
-                f'<strong style="color: {color};">Zone {z+1} {status}</strong>'
+                f'<strong style="color: {color};">{zone_name}: {status}</strong>'
                 f'<p style="color: var(--text-secondary); font-size: 0.875rem; margin: 0.5rem 0 0 0;">'
-                f'{summary}</p></div>'
+                f'{count} people detected in zone</p></div>'
             )
     else:
         alert_html = (
@@ -374,6 +391,10 @@ def _render_alerts_panel(placeholder, zone_statuses, zone_counts):
         )
 
 
+# ==============================================================================
+# MAIN ANALYSIS LOOP
+# ==============================================================================
+
 def _run_analysis_loop(video_placeholder, zone_status_placeholder,
                         stats_placeholder, exit_placeholder, alerts_placeholder,
                         snapshot_clicked):
@@ -383,13 +404,9 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
     model = load_yolo_model()
 
     # Get config from session state
-    zone_config = st.session_state.get('zone_config', DEFAULT_ZONE_CONFIG)
-    exit_config = st.session_state.get('exit_config', DEFAULT_EXIT_CONFIG)
+    polygon_zones = st.session_state.get('polygon_zones', [])
+    exit_points = st.session_state.get('exit_points', [])
     frame_skip = st.session_state.get('frame_skip', 2)
-    confidence_threshold = st.session_state.get('confidence', 0.5)
-    show_boxes = st.session_state.get('show_boxes', True)
-    show_zones = st.session_state.get('show_zones', True)
-    show_heatmap = st.session_state.get('show_heatmap', True)
     enable_audio = st.session_state.get('enable_audio', True)
 
     # Initialize timer manager
@@ -413,10 +430,7 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
         os.unlink(temp_file.name)
         return
 
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
-
-    zone_names = {0: "Zone 1 (NW)", 1: "Zone 2 (NE)", 2: "Zone 3 (SW)", 3: "Zone 4 (SE)"}
     frame_count = 0
     prev_counts = st.session_state.prev_zone_counts
 
@@ -428,7 +442,6 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
 
             ret, frame = cap.read()
             if not ret:
-                # Video ended - loop back or stop
                 st.session_state.analysis_running = False
                 break
 
@@ -440,17 +453,13 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
 
             # Process frame through the full pipeline
             processed_frame, detections, zone_counts, zone_densities, \
-                zone_statuses, zone_timer_data = process_frame(
-                    frame, model, zone_config, timer_manager
+                zone_statuses, zone_timer_data, evac_routes = process_frame(
+                    frame, model, polygon_zones, exit_points, timer_manager
                 )
 
             # Update audio alerts
             if enable_audio:
                 audio_system.update_alert(zone_statuses)
-
-            # Calculate exit statuses
-            zone_exit_mapping = get_zone_exit_mapping(exit_config)
-            exit_statuses = get_exit_status(exit_config, zone_statuses)
 
             # Store last known data
             st.session_state.last_zone_counts = zone_counts
@@ -458,14 +467,35 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
             st.session_state.last_zone_statuses = zone_statuses
             st.session_state.analysis_frame_count = frame_count
 
+            # Build evacuation instructions for session data
+            frame_h, frame_w = frame.shape[:2]
+            instructions = generate_evacuation_instructions(
+                polygon_zones, zone_statuses, zone_counts,
+                zone_densities, exit_points, frame_w, frame_h
+            )
+
             # Accumulate session data for analytics
+            zone_data = {}
+            for zone in polygon_zones:
+                zid = zone["id"]
+                selected_exit = None
+                for instr in instructions:
+                    if instr["zone_id"] == zid:
+                        selected_exit = instr.get("selected_exit")
+                        break
+                zone_data[zid] = {
+                    "name": zone["name"],
+                    "count": zone_counts.get(zid, 0),
+                    "density": round(zone_densities.get(zid, 0.0), 3),
+                    "status": zone_statuses.get(zid, "SAFE"),
+                    "selected_exit": selected_exit,
+                }
+
             st.session_state.session_data.append({
                 'timestamp': datetime.now().isoformat(),
                 'frame': frame_count,
                 'total_people': sum(zone_counts.values()),
-                'zone_counts': dict(zone_counts),
-                'zone_densities': {str(k): round(v, 3) for k, v in zone_densities.items()},
-                'zone_statuses': dict(zone_statuses),
+                'zones': zone_data,
                 'global_status': get_global_alert_level(zone_statuses)
             })
 
@@ -477,7 +507,7 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
             # ─── Update UI ────────────────────────────────────────
             # Video feed
             frame_rgb = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
-            video_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
+            video_placeholder.image(frame_rgb, channels="RGB", width='stretch')
 
             # Zone status cards
             with zone_status_placeholder.container():
@@ -487,33 +517,33 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
                 </h3>
                 """, unsafe_allow_html=True)
 
-                zcol1, zcol2 = st.columns(2)
-                for z in range(4):
+                cols = st.columns(min(len(polygon_zones), 2))
+                for i, zone in enumerate(polygon_zones):
+                    zid = zone["id"]
                     trend_arrow, trend_color = _get_trend_arrow(
-                        zone_counts[z],
-                        prev_counts[z] if prev_counts else None
+                        zone_counts.get(zid, 0),
+                        prev_counts.get(zid) if prev_counts else None
                     )
-                    col = zcol1 if z % 2 == 0 else zcol2
+                    col = cols[i % len(cols)]
                     with col:
                         st.markdown(_build_zone_card_html(
-                            z, zone_names[z], zone_statuses[z],
-                            zone_counts[z], zone_densities[z],
+                            zid, zone["name"], zone_statuses.get(zid, "SAFE"),
+                            zone_counts.get(zid, 0), zone_densities.get(zid, 0.0),
                             trend_arrow, trend_color
                         ), unsafe_allow_html=True)
-                        if z < 2:
-                            st.markdown("<br>", unsafe_allow_html=True)
 
             # Stats panel
-            _render_stats_panel(stats_placeholder, zone_counts, zone_densities, zone_statuses)
+            _render_stats_panel(stats_placeholder, zone_counts,
+                                zone_densities, zone_statuses, polygon_zones)
 
             # Exit panel
-            st.session_state.last_exit_statuses = exit_statuses
             _render_exit_panel(exit_placeholder)
 
             # Alerts panel
-            _render_alerts_panel(alerts_placeholder, zone_statuses, zone_counts)
+            _render_alerts_panel(alerts_placeholder, zone_statuses,
+                                zone_counts, polygon_zones)
 
-            # Update previous counts for trend calculation
+            # Update previous counts
             prev_counts = dict(zone_counts)
             st.session_state.prev_zone_counts = prev_counts
 
@@ -524,7 +554,6 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
         cap.release()
         os.unlink(temp_file.name)
 
-        # Stop audio when done
         if enable_audio:
             audio_system.stop_alert()
 

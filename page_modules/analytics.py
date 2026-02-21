@@ -27,7 +27,11 @@ from session_persistence import (
 
 
 def _get_session_dataframe(session_data):
-    """Convert raw session data list to a clean DataFrame."""
+    """Convert raw session data list to a clean DataFrame.
+    
+    Supports both the new dynamic-zone format (zones dict) and
+    the legacy 4-zone format (zone_counts/zone_densities/zone_statuses).
+    """
     if not session_data:
         return None
 
@@ -39,20 +43,26 @@ def _get_session_dataframe(session_data):
             'total_people': entry.get('total_people', 0),
             'global_status': entry.get('global_status', 'SAFE'),
         }
-        # Flatten zone counts
-        zc = entry.get('zone_counts', {})
-        for z in range(4):
-            row[f'zone_{z+1}_count'] = zc.get(str(z), zc.get(z, 0))
 
-        # Flatten zone densities
-        zd = entry.get('zone_densities', {})
-        for z in range(4):
-            row[f'zone_{z+1}_density'] = zd.get(str(z), zd.get(z, 0.0))
-
-        # Flatten zone statuses
-        zs = entry.get('zone_statuses', {})
-        for z in range(4):
-            row[f'zone_{z+1}_status'] = zs.get(str(z), zs.get(z, 'SAFE'))
+        # New dynamic format: entry['zones'] = {zone_id: {name, count, density, status, selected_exit}}
+        zones_dict = entry.get('zones', {})
+        if zones_dict:
+            for zid, zdata in zones_dict.items():
+                zname = zdata.get('name', zid)
+                row[f'{zname}_count'] = zdata.get('count', 0)
+                row[f'{zname}_density'] = zdata.get('density', 0.0)
+                row[f'{zname}_status'] = zdata.get('status', 'SAFE')
+                if zdata.get('selected_exit'):
+                    row[f'{zname}_exit'] = zdata['selected_exit']
+        else:
+            # Legacy fallback: zone_counts / zone_densities / zone_statuses dicts
+            zc = entry.get('zone_counts', {})
+            zd = entry.get('zone_densities', {})
+            zs = entry.get('zone_statuses', {})
+            for z in range(4):
+                row[f'Zone {z+1}_count'] = zc.get(str(z), zc.get(z, 0))
+                row[f'Zone {z+1}_density'] = zd.get(str(z), zd.get(z, 0.0))
+                row[f'Zone {z+1}_status'] = zs.get(str(z), zs.get(z, 'SAFE'))
 
         rows.append(row)
 
@@ -176,7 +186,7 @@ def render():
     if len(current_session) > 0:
         col_save, col_info = st.columns([1, 3])
         with col_save:
-            if st.button("Save Current Session", use_container_width=True, type="primary"):
+            if st.button("Save Current Session", width='stretch', type="primary"):
                 metadata = {
                     "video_name": st.session_state.get('video_name', 'Unknown'),
                     "total_frames": st.session_state.get('analysis_frame_count', 0),
@@ -237,7 +247,7 @@ def render():
             """, unsafe_allow_html=True)
 
     with col3:
-        if st.button("Generate Report", use_container_width=True, type="primary"):
+        if st.button("Generate Report", width='stretch', type="primary"):
             st.success("Report generated successfully!")
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -304,18 +314,18 @@ def _render_real_analytics(df):
         </div>
         """, unsafe_allow_html=True)
 
-        # Build zone count series using frame index or timestamp
+        # Dynamically discover zone count columns
+        count_cols = [c for c in df.columns if c.endswith('_count')]
         x_data = df['frame'] if 'frame' in df.columns else df.index
         zone_series = {}
-        for z in range(4):
-            col_name = f'zone_{z+1}_count'
-            if col_name in df.columns:
-                zone_series[f'Zone {z+1}'] = df[col_name].tolist()
+        for col in count_cols:
+            zone_name = col.replace('_count', '')
+            zone_series[zone_name] = df[col].tolist()
 
         if zone_series:
             fig = _create_themed_line_chart(x_data, zone_series)
             fig.update_layout(xaxis_title='Frame')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -329,16 +339,15 @@ def _render_real_analytics(df):
         """, unsafe_allow_html=True)
 
         zone_totals = {}
-        for z in range(4):
-            col_name = f'zone_{z+1}_count'
-            if col_name in df.columns:
-                zone_totals[f'Zone {z+1}'] = df[col_name].sum()
+        for col in count_cols:
+            zone_name = col.replace('_count', '')
+            zone_totals[zone_name] = df[col].sum()
 
         if zone_totals:
             fig2 = _create_themed_bar_chart(
                 list(zone_totals.keys()), list(zone_totals.values())
             )
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, width='stretch')
 
     with col_right:
         # Status Distribution Pie
@@ -356,7 +365,7 @@ def _render_real_analytics(df):
 
         if sum(counts) > 0:
             fig3 = _create_themed_pie_chart(display_labels, counts)
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, width='stretch')
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -374,8 +383,8 @@ def _render_real_analytics(df):
         peak_frame = df.loc[peak_frame_idx, 'frame'] if 'frame' in df.columns else peak_frame_idx
 
         # Find busiest zone
-        zone_sums = {f'Zone {z+1}': df[f'zone_{z+1}_count'].sum()
-                     for z in range(4) if f'zone_{z+1}_count' in df.columns}
+        count_cols_peak = [c for c in df.columns if c.endswith('_count')]
+        zone_sums = {c.replace('_count', ''): df[c].sum() for c in count_cols_peak}
         busiest_zone = max(zone_sums, key=zone_sums.get) if zone_sums else "N/A"
 
         st.markdown(f"""
@@ -455,7 +464,7 @@ def _render_real_analytics(df):
             data=csv_buffer.getvalue(),
             file_name=f"crowd_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv",
-            use_container_width=True
+            width='stretch'
         )
 
     with col2:
@@ -468,10 +477,10 @@ def _render_real_analytics(df):
                 data=excel_buffer.getvalue(),
                 file_name=f"crowd_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
+                width='stretch'
             )
         except ImportError:
-            if st.button("Excel Report", use_container_width=True):
+            if st.button("Excel Report", width='stretch'):
                 st.info("Install openpyxl for Excel export: pip install openpyxl")
 
     with col3:
@@ -482,11 +491,11 @@ def _render_real_analytics(df):
             data=json_data,
             file_name=f"crowd_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json",
-            use_container_width=True
+            width='stretch'
         )
 
     with col4:
-        if st.button("Email Report", use_container_width=True):
+        if st.button("Email Report", width='stretch'):
             st.info("Email integration coming soon")
 
 
@@ -541,7 +550,7 @@ def _render_demo_analytics():
         """, unsafe_allow_html=True)
 
         fig = _create_themed_line_chart(demo['dates'], demo['zone_data'])
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -558,7 +567,7 @@ def _render_demo_analytics():
             list(demo['zone_totals'].keys()),
             list(demo['zone_totals'].values())
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width='stretch')
 
     with col_right:
         # Status Distribution Pie
@@ -574,7 +583,7 @@ def _render_demo_analytics():
             list(demo['status_counts'].keys()),
             list(demo['status_counts'].values())
         )
-        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(fig3, width='stretch')
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -646,17 +655,17 @@ def _render_demo_analytics():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        if st.button("Excel Report", use_container_width=True, key="demo_excel"):
+        if st.button("Excel Report", width='stretch', key="demo_excel"):
             st.info("Run an analysis first to export real data")
 
     with col2:
-        if st.button("PDF Summary", use_container_width=True, key="demo_pdf"):
+        if st.button("PDF Summary", width='stretch', key="demo_pdf"):
             st.info("Run an analysis first to export real data")
 
     with col3:
-        if st.button("CSV Data", use_container_width=True, key="demo_csv"):
+        if st.button("CSV Data", width='stretch', key="demo_csv"):
             st.info("Run an analysis first to export real data")
 
     with col4:
-        if st.button("Email Report", use_container_width=True, key="demo_email"):
+        if st.button("Email Report", width='stretch', key="demo_email"):
             st.info("Run an analysis first to export real data")

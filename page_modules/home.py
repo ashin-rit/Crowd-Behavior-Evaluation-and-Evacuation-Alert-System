@@ -329,7 +329,7 @@ def render():
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button(btn_label, use_container_width=True, type="primary"):
+        if st.button(btn_label, width='stretch', type="primary"):
             st.session_state.current_page = target_page
             st.rerun()
 
