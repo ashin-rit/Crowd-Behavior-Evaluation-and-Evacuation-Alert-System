@@ -683,7 +683,7 @@ def main():
         button_type = "primary" if is_current else "secondary"
         
         if st.sidebar.button(page_name, key=f"nav_{page_key}", 
-                            use_container_width=True, type=button_type):
+                            width='stretch', type=button_type):
             st.session_state.current_page = page_key
             st.rerun()
     
@@ -691,7 +691,7 @@ def main():
     
     # System status sidebar
     st.sidebar.markdown("### System Status")
-    st.sidebar.markdown("""
+    st.sidebar.markdown(f"""
     <div class="glass-card" style="margin-top: 0.75rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
             <span style="color: var(--text-secondary); font-size: 0.875rem;">
@@ -709,7 +709,7 @@ def main():
             <span style="color: var(--text-secondary); font-size: 0.875rem;">
                 <i class="ph ph-squares-four" style="color: var(--text-tertiary); margin-right: 4px;"></i> Active Zones
             </span>
-            <span style="color: var(--primary-cyan); font-weight: 600; font-size: 0.9375rem;">4</span>
+            <span style="color: var(--primary-cyan); font-weight: 600; font-size: 0.9375rem;">{len(st.session_state.get('polygon_zones', []))}</span>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="color: var(--text-secondary); font-size: 0.875rem;">
