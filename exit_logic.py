@@ -5,8 +5,6 @@ EXIT LOGIC MODULE — SPATIAL EXIT POINTS
 Manages spatial exit points with percentage-based coordinates.
 Computes nearest-exit routing using Euclidean distance from zone centroids.
 
-Author: Ashin Saji
-MCA Final Year Project
 ================================================================================
 """
 
@@ -122,3 +120,39 @@ def find_nearest_exit_with_capacity(zone_centroid_px: Tuple[int, int],
         nearest["capacity_warning"] = True
 
     return nearest
+
+
+def find_ranked_open_exits(zone_centroid_px: Tuple[int, int],
+                            exit_points: List[Dict],
+                            frame_w: int, frame_h: int) -> List[Dict]:
+    """
+    Return all OPEN exits sorted by distance from centroid (nearest first).
+
+    Each returned dict includes the original exit data plus:
+      - 'distance_px': Euclidean distance in pixels
+
+    Args:
+        zone_centroid_px: (cx, cy) centroid of the zone in pixel coords
+        exit_points: List of exit point dicts
+        frame_w: Frame width in pixels
+        frame_h: Frame height in pixels
+
+    Returns:
+        List of exit dicts sorted by distance (nearest first), empty if none open.
+    """
+    cx, cy = zone_centroid_px
+    ranked = []
+
+    for ep in exit_points:
+        if ep.get("status", "OPEN") != "OPEN":
+            continue
+
+        ex, ey = get_exit_pixel_coords(ep, frame_w, frame_h)
+        dist = math.sqrt((cx - ex) ** 2 + (cy - ey) ** 2)
+
+        exit_with_dist = dict(ep)
+        exit_with_dist["distance_px"] = dist
+        ranked.append(exit_with_dist)
+
+    ranked.sort(key=lambda e: e["distance_px"])
+    return ranked

@@ -83,17 +83,36 @@ class EmergencyTimerManager:
     def get_timer_data(self, zone_id):
         """Get comprehensive timer data for a zone.
 
-        Returns a dict with elapsed, formatted_time, severity, and flash
-        if the zone has an active timer; otherwise returns None.
+        Returns a dict with:
+          - active: bool
+          - elapsed: seconds
+          - formatted: MM:SS
+          - severity: WARNING/CRITICAL/SEVERE
+          - flash: bool
+          - color_bgr: (B, G, R) color for visualization
         """
         if zone_id not in self.zone_timers:
-            return None
+            return {'active': False}
+            
         self.update_timer(zone_id)
+        severity = self.get_severity_level(zone_id)
+        
+        # Status colors mapping (corresponds to config.py but pre-computed BGR)
+        # CRITICAL/SEVERE usually Red, WARNING usually Amber/Yellow
+        from config import STATUS_COLORS_BGR
+        # EMERGENCY status color is often Red
+        emergency_color = STATUS_COLORS_BGR.get("EMERGENCY", (0, 0, 255))
+        warning_color = STATUS_COLORS_BGR.get("WARNING", (0, 165, 255))
+        
+        color = emergency_color if severity in ('CRITICAL', 'SEVERE') else warning_color
+
         return {
+            'active': True,
             'elapsed': self.get_elapsed(zone_id),
-            'formatted_time': self.get_formatted_time(zone_id),
-            'severity': self.get_severity_level(zone_id),
+            'formatted': self.get_formatted_time(zone_id),
+            'severity': severity,
             'flash': self.should_flash(zone_id),
+            'color_bgr': color
         }
 
     def get_all_active_timers(self):

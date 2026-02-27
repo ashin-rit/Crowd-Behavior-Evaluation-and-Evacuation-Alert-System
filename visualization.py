@@ -85,11 +85,17 @@ def draw_zone_hud_at_centroid(frame: np.ndarray, zone_name: str, count: int,
     color = STATUS_COLORS_BGR.get(status, STATUS_COLORS_BGR["SAFE"])
 
     # Background
+    # Boundary Checks (Prevent HUD from clipping off screen)
+    h, w = frame.shape[:2]
     bg_w, bg_h = 165, 75
-    bg_x1 = cx - bg_w // 2
-    bg_y1 = cy - bg_h // 2
-    bg_x2 = cx + bg_w // 2
-    bg_y2 = cy + bg_h // 2
+    
+    # Constrain X
+    bg_x1 = max(5, min(cx - bg_w // 2, w - bg_w - 5))
+    bg_x2 = bg_x1 + bg_w
+    
+    # Constrain Y
+    bg_y1 = max(5, min(cy - bg_h // 2, h - bg_h - 5))
+    bg_y2 = bg_y1 + bg_h
 
     overlay = frame.copy()
     cv2.rectangle(overlay, (bg_x1, bg_y1), (bg_x2, bg_y2), (0, 0, 0), -1)
@@ -172,7 +178,8 @@ def draw_exit_marker(frame: np.ndarray, exit_point: Dict,
 def draw_evacuation_arrow(frame: np.ndarray,
                            centroid_px: Tuple[int, int],
                            exit_px: Tuple[int, int],
-                           severity: str = "EMERGENCY") -> np.ndarray:
+                           severity: str = "EMERGENCY",
+                           est_time: float = 0) -> np.ndarray:
     """
     Draw an evacuation route arrow from zone centroid to the selected exit.
 
@@ -181,6 +188,7 @@ def draw_evacuation_arrow(frame: np.ndarray,
         centroid_px: (cx, cy) start point (zone centroid)
         exit_px: (ex, ey) end point (exit location)
         severity: 'WARNING' or 'EMERGENCY' for styling
+        est_time: Estimated evacuation time in seconds (0 = don't show)
 
     Returns:
         Frame with evacuation arrow
@@ -200,7 +208,10 @@ def draw_evacuation_arrow(frame: np.ndarray,
     mid_x = (centroid_px[0] + exit_px[0]) // 2
     mid_y = (centroid_px[1] + exit_px[1]) // 2
 
-    label = "EVACUATE →" if severity == "EMERGENCY" else "PREPARE →"
+    label = "EVACUATE" if severity == "EMERGENCY" else "PREPARE"
+    if est_time > 0:
+        label += f" ~{int(est_time)}s"
+    label += " \u2192"
     cv2.putText(frame, label, (mid_x - 40, mid_y - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
 
@@ -268,9 +279,9 @@ def draw_emergency_timer_at_centroid(frame: np.ndarray, zone_name: str,
         return frame
 
     cx, cy = centroid_px
-    time_str = timer_data['formatted']
-    severity = timer_data['severity']
-    color = timer_data['color_bgr']
+    time_str = timer_data.get('formatted', '00:00')
+    severity = timer_data.get('severity', 'WARNING')
+    color = timer_data.get('color_bgr', (0, 165, 255))
 
     # Position timer below the HUD
     y = cy + 55
@@ -351,10 +362,62 @@ def draw_all_emergency_timers(frame: np.ndarray,
 # MAIN FRAME PROCESSING PIPELINE
 # ==============================================================================
 
+def draw_density_heatmap(frame: np.ndarray, detections: List[Dict]) -> np.ndarray:
+    """
+    Render a density heatmap overlay from detection center-points.
+
+    Builds a Gaussian-blurred accumulation map from person positions,
+    normalizes it, applies JET colormap, and blends onto the frame.
+
+    Args:
+        frame: Video frame to draw on
+        detections: List of detection dicts with 'center' key
+
+    Returns:
+        Frame with heatmap blended in
+    """
+    if not detections:
+        return frame
+
+    h, w = frame.shape[:2]
+    heatmap = np.zeros((h, w), dtype=np.float32)
+
+    for det in detections:
+        cx, cy = det['center']
+        if 0 <= cx < w and 0 <= cy < h:
+            heatmap[cy, cx] += 1.0
+
+    # Gaussian blur to spread heat around each person
+    heatmap = cv2.GaussianBlur(heatmap, (0, 0), sigmaX=40, sigmaY=40)
+
+    # Normalize to 0-255
+    max_val = heatmap.max()
+    if max_val > 0:
+        heatmap = (heatmap / max_val * 255).astype(np.uint8)
+    else:
+        return frame
+
+    # Apply JET colormap
+    heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+
+    # Mask out near-zero areas so background isn't tinted
+    mask = heatmap > 15
+    mask_3ch = np.stack([mask, mask, mask], axis=-1)
+
+    blended = cv2.addWeighted(frame, 1.0, heatmap_color, 0.45, 0)
+    result = np.where(mask_3ch, blended, frame)
+
+    return result.astype(np.uint8)
+
+
 def process_frame(frame: np.ndarray, model,
                   polygon_zones: List[Dict],
                   exit_points: List[Dict],
-                  timer_manager=None) -> Tuple:
+                  timer_manager=None,
+                  show_boxes: bool = True,
+                  show_zones: bool = True,
+                  show_heatmap: bool = False,
+                  confidence: float = 0.5) -> tuple:
     """
     Main processing function for each video frame.
 
@@ -363,7 +426,7 @@ def process_frame(frame: np.ndarray, model,
     2. Assign detections to polygon zones
     3. Calculate zone densities and statuses
     4. Compute evacuation routes for emergency zones
-    5. Draw all visualizations
+    5. Draw visualizations (each controlled by its flag)
 
     Args:
         frame: Input video frame (BGR format)
@@ -371,6 +434,10 @@ def process_frame(frame: np.ndarray, model,
         polygon_zones: List of polygon zone dicts
         exit_points: List of exit point dicts
         timer_manager: EmergencyTimerManager instance (optional)
+        show_boxes: Draw bounding boxes around detected people
+        show_zones: Draw polygon zone overlays and HUD labels
+        show_heatmap: Draw density heatmap from detection positions
+        confidence: YOLO detection confidence threshold (0.0–1.0)
 
     Returns:
         tuple: (processed_frame, detections, zone_counts, zone_densities,
@@ -380,8 +447,8 @@ def process_frame(frame: np.ndarray, model,
 
     frame_h, frame_w = frame.shape[:2]
 
-    # 1. YOLO inference (class 0 = person)
-    results = model(frame, classes=[0], verbose=False)
+    # 1. YOLO inference (class 0 = person), apply confidence threshold
+    results = model(frame, classes=[0], conf=confidence, verbose=False)
 
     # 2. Process detections
     detections = []
@@ -389,14 +456,14 @@ def process_frame(frame: np.ndarray, model,
         boxes = result.boxes
         for box in boxes:
             x1, y1, x2, y2 = map(int, box.xyxy[0])
-            confidence = float(box.conf[0])
-            cx = (x1 + x2) // 2
-            cy = (y1 + y2) // 2
+            det_conf = float(box.conf[0])
+            cx = int((x1 + x2) / 2)
+            cy = int((y1 + y2) / 2)
 
             detections.append({
                 'bbox': (x1, y1, x2, y2),
                 'center': (cx, cy),
-                'confidence': confidence
+                'confidence': det_conf
             })
 
     # 3. Assign to polygon zones
@@ -407,41 +474,48 @@ def process_frame(frame: np.ndarray, model,
         zone_counts, polygon_zones, timer_manager
     )
 
-    # 5. Compute evacuation routes
+    # 5. Compute evacuation routes (enhanced: load-balanced + ETA)
     evac_routes = get_evacuation_routes(polygon_zones, zone_statuses,
+                                         zone_counts, zone_densities,
                                          exit_points, frame_w, frame_h)
 
     # ── DRAW VISUALIZATIONS ──────────────────────────────────────
 
-    # a. Polygon zone overlays
-    for zone in polygon_zones:
-        zid = zone["id"]
-        frame = draw_polygon_zone(frame, zone["polygon"],
-                                  zone_statuses.get(zid, "SAFE"), frame_w, frame_h)
+    # a. Density heatmap (drawn first, underneath everything else)
+    if show_heatmap:
+        frame = draw_density_heatmap(frame, detections)
 
-    # b. Bounding boxes
-    frame = draw_bounding_boxes(frame, detections, zone_statuses)
+    # b. Polygon zone overlays + HUD labels
+    if show_zones:
+        for zone in polygon_zones:
+            zid = zone["id"]
+            frame = draw_polygon_zone(frame, zone["polygon"],
+                                      zone_statuses.get(zid, "SAFE"), frame_w, frame_h)
 
-    # c. Zone HUDs at centroids
-    for zone in polygon_zones:
-        zid = zone["id"]
-        centroid = get_polygon_centroid(zone["polygon"], frame_w, frame_h)
-        frame = draw_zone_hud_at_centroid(
-            frame, zone.get("name", zid),
-            zone_counts.get(zid, 0),
-            zone_densities.get(zid, 0.0),
-            zone_statuses.get(zid, "SAFE"),
-            centroid
-        )
+        for zone in polygon_zones:
+            zid = zone["id"]
+            centroid = get_polygon_centroid(zone["polygon"], frame_w, frame_h)
+            frame = draw_zone_hud_at_centroid(
+                frame, zone.get("name", zid),
+                zone_counts.get(zid, 0),
+                zone_densities.get(zid, 0.0),
+                zone_statuses.get(zid, "SAFE"),
+                centroid
+            )
 
-    # d. Exit markers
+    # c. Bounding boxes
+    if show_boxes:
+        frame = draw_bounding_boxes(frame, detections, zone_statuses)
+
+    # d. Exit markers (always shown — needed for evacuation context)
     for ep in exit_points:
         frame = draw_exit_marker(frame, ep, frame_w, frame_h)
 
     # e. Evacuation arrows
     for route in evac_routes:
         frame = draw_evacuation_arrow(
-            frame, route["centroid_px"], route["exit_px"], route["severity"]
+            frame, route["centroid_px"], route["exit_px"],
+            route["severity"], route.get("est_time_seconds", 0)
         )
 
     # f. Emergency timers

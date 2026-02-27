@@ -297,16 +297,13 @@ _audio_system = None
 def get_audio_system(enabled: bool = True) -> AudioAlertSystem:
     """
     Get or create the global audio alert system.
-    
-    Args:
-        enabled: Whether audio is enabled
-        
-    Returns:
-        AudioAlertSystem instance
     """
     global _audio_system
     if _audio_system is None:
         _audio_system = AudioAlertSystem(enabled=enabled)
+    else:
+        # Update enabled flag if it already exists
+        _audio_system.enabled = enabled
     return _audio_system
 
 

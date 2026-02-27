@@ -340,15 +340,22 @@ def _render_exit_panel(placeholder):
 # ==============================================================================
 
 def _render_alerts_panel(placeholder, zone_statuses, zone_counts, polygon_zones=None):
-    """Render the alerts and evacuation instructions panel."""
+    """Render the alerts and evacuation instructions panel with enhanced info."""
     global_status = get_global_alert_level(zone_statuses)
 
     zones = polygon_zones or st.session_state.get('polygon_zones', [])
-    zone_lookup = {z["id"]: z.get("name", z["id"]) for z in zones}
+    exit_points = st.session_state.get('exit_points', [])
+    zone_densities = st.session_state.get('last_zone_densities', {z["id"]: 0.0 for z in zones})
 
-    # Find zones with warnings or emergencies
-    alert_zones = [(zid, s) for zid, s in zone_statuses.items()
-                   if s in ("WARNING", "EMERGENCY")]
+    # Generate enhanced evacuation instructions
+    # We need frame dimensions for routing — use a reasonable default
+    frame_w = st.session_state.get('frame_width', 1280)
+    frame_h = st.session_state.get('frame_height', 720)
+
+    instructions = generate_evacuation_instructions(
+        zones, zone_statuses, zone_counts,
+        zone_densities, exit_points, frame_w, frame_h
+    )
 
     alert_color = {
         "SAFE": "var(--status-success)",
@@ -357,19 +364,59 @@ def _render_alerts_panel(placeholder, zone_statuses, zone_counts, polygon_zones=
         "EMERGENCY": "var(--status-danger)"
     }.get(global_status, "var(--text-tertiary)")
 
+    # Filter to only WARNING / EMERGENCY instructions
+    alert_instructions = [i for i in instructions if i["status"] in ("WARNING", "EMERGENCY")]
+
     alert_html = ""
-    if alert_zones:
-        for zid, status in alert_zones:
-            zone_name = zone_lookup.get(zid, zid)
-            count = zone_counts.get(zid, 0)
+    if alert_instructions:
+        for instr in alert_instructions:
+            status = instr["status"]
+            zone_name = instr["zone_name"]
+            count = instr["count"]
+            priority = instr.get("priority")
+            est_time = instr.get("est_time_seconds", 0)
+            split_routes = instr.get("split_routes", [])
+            selected_exit = instr.get("selected_exit", "")
+            danger_score = instr.get("danger_score", 0)
+
             color = "var(--status-danger)" if status == "EMERGENCY" else "var(--status-warning)"
             bg = "rgba(239, 68, 68, 0.1)" if status == "EMERGENCY" else "rgba(245, 158, 11, 0.1)"
+
+            # Priority badge
+            priority_html = ""
+            if priority is not None:
+                priority_html = (
+                    f' <span style="background: linear-gradient(135deg, var(--primary-cyan), var(--secondary-blue));'
+                    f' color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem;'
+                    f' font-weight: 700; margin-left: 0.5rem;">⚡ Priority {priority}</span>'
+                )
+
+            # Details line
+            details = f'{count} people detected'
+            if selected_exit:
+                details += f' → {selected_exit}'
+            if est_time > 0:
+                details += f' (~{int(est_time)}s)'
+
+            # Split route info
+            split_html = ""
+            if split_routes:
+                routes_parts = [f'{r["people_count"]} via {r["exit_name"]}' for r in split_routes]
+                split_html = (
+                    f'<p style="color: var(--primary-cyan); font-size: 0.8125rem; margin: 0.5rem 0 0 0;'
+                    f' font-weight: 600;">'
+                    f'Split routing: {" + ".join(routes_parts)}</p>'
+                )
+
             alert_html += (
                 f'<div style="background: {bg}; padding: 1rem; border-radius: 8px;'
                 f' border: 1px solid {color}; margin-bottom: 0.75rem;">'
                 f'<strong style="color: {color};">{zone_name}: {status}</strong>'
+                f'{priority_html}'
                 f'<p style="color: var(--text-secondary); font-size: 0.875rem; margin: 0.5rem 0 0 0;">'
-                f'{count} people detected in zone</p></div>'
+                f'{details}</p>'
+                f'{split_html}'
+                f'</div>'
             )
     else:
         alert_html = (
@@ -384,7 +431,7 @@ def _render_alerts_panel(placeholder, zone_statuses, zone_counts, polygon_zones=
         st.markdown(
             f'<div class="glass-card" style="border-color: {alert_color};">'
             f'<h3 style="color: {alert_color}; margin-bottom: 1rem; font-family: \'Space Grotesk\', sans-serif;">'
-            f'<i class="ph-duotone ph-warning"></i> Alerts</h3>'
+            f'<i class="ph-duotone ph-warning"></i> Alerts & Evacuation</h3>'
             f'{alert_html}'
             f'</div>',
             unsafe_allow_html=True
@@ -407,7 +454,17 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
     polygon_zones = st.session_state.get('polygon_zones', [])
     exit_points = st.session_state.get('exit_points', [])
     frame_skip = st.session_state.get('frame_skip', 2)
+    confidence = st.session_state.get('confidence', 0.5)
     enable_audio = st.session_state.get('enable_audio', True)
+    enable_notifications = st.session_state.get('enable_notifications', False)
+    log_events = st.session_state.get('log_events', True)
+    show_boxes = st.session_state.get('show_boxes', True)
+    show_zones = st.session_state.get('show_zones', True)
+    show_heatmap = st.session_state.get('show_heatmap', False)
+
+    # Track previous global status for push notification escalation detection
+    if 'prev_global_status' not in st.session_state:
+        st.session_state.prev_global_status = 'SAFE'
 
     # Initialize timer manager
     if 'timer_manager' not in st.session_state:
@@ -454,12 +511,28 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
             # Process frame through the full pipeline
             processed_frame, detections, zone_counts, zone_densities, \
                 zone_statuses, zone_timer_data, evac_routes = process_frame(
-                    frame, model, polygon_zones, exit_points, timer_manager
+                    frame, model, polygon_zones, exit_points, timer_manager,
+                    show_boxes=show_boxes,
+                    show_zones=show_zones,
+                    show_heatmap=show_heatmap,
+                    confidence=confidence
                 )
 
             # Update audio alerts
             if enable_audio:
                 audio_system.update_alert(zone_statuses)
+
+            # Push notifications — toast on status escalation
+            if enable_notifications:
+                current_global = get_global_alert_level(zone_statuses)
+                prev_global = st.session_state.prev_global_status
+                escalation_order = ['SAFE', 'MODERATE', 'WARNING', 'EMERGENCY']
+                if (escalation_order.index(current_global) >
+                        escalation_order.index(prev_global) and
+                        current_global in ('WARNING', 'EMERGENCY')):
+                    icon = '🚨' if current_global == 'EMERGENCY' else '⚠️'
+                    st.toast(f'{icon} Alert Level: {current_global}', icon=icon)
+                st.session_state.prev_global_status = current_global
 
             # Store last known data
             st.session_state.last_zone_counts = zone_counts
@@ -469,6 +542,8 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
 
             # Build evacuation instructions for session data
             frame_h, frame_w = frame.shape[:2]
+            st.session_state.frame_width = frame_w
+            st.session_state.frame_height = frame_h
             instructions = generate_evacuation_instructions(
                 polygon_zones, zone_statuses, zone_counts,
                 zone_densities, exit_points, frame_w, frame_h
@@ -479,9 +554,13 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
             for zone in polygon_zones:
                 zid = zone["id"]
                 selected_exit = None
+                priority = None
+                est_time = 0
                 for instr in instructions:
                     if instr["zone_id"] == zid:
                         selected_exit = instr.get("selected_exit")
+                        priority = instr.get("priority")
+                        est_time = instr.get("est_time_seconds", 0)
                         break
                 zone_data[zid] = {
                     "name": zone["name"],
@@ -489,15 +568,18 @@ def _run_analysis_loop(video_placeholder, zone_status_placeholder,
                     "density": round(zone_densities.get(zid, 0.0), 3),
                     "status": zone_statuses.get(zid, "SAFE"),
                     "selected_exit": selected_exit,
+                    "priority": priority,
+                    "est_time_seconds": est_time,
                 }
 
-            st.session_state.session_data.append({
-                'timestamp': datetime.now().isoformat(),
-                'frame': frame_count,
-                'total_people': sum(zone_counts.values()),
-                'zones': zone_data,
-                'global_status': get_global_alert_level(zone_statuses)
-            })
+            if log_events:
+                st.session_state.session_data.append({
+                    'timestamp': datetime.now().isoformat(),
+                    'frame': frame_count,
+                    'total_people': sum(zone_counts.values()),
+                    'zones': zone_data,
+                    'global_status': get_global_alert_level(zone_statuses)
+                })
 
             # Handle snapshot
             if snapshot_clicked:

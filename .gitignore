@@ -16,6 +16,9 @@ ENV/
 *.tmp
 *.temp
 
+# Ignore samples folder
+samples/
+
 # IDE
 .vscode/
 .idea/

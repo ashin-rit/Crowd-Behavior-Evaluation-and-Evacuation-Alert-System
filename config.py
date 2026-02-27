@@ -170,3 +170,18 @@ TIMER_COLORS = {
 TIMER_FONT_SCALE = 0.7
 TIMER_FONT_THICKNESS = 2
 TIMER_FLASH_INTERVAL = 0.5  # Seconds between flashes for SEVERE state
+
+# ==============================================================================
+# EVACUATION ROUTING CONFIGURATION
+# ==============================================================================
+
+# Walking speeds (meters per second) — based on crowd safety research
+CROWD_WALK_SPEED_NORMAL = 1.2   # Normal walking speed in uncrowded conditions
+CROWD_WALK_SPEED_DENSE = 0.5    # Walking speed in dense crowd (>3.5 p/m²)
+
+# Density threshold to switch from normal to dense walking speed
+DENSITY_SPEED_THRESHOLD = 3.5   # people per square meter
+
+# Scale factor: approximate pixels per meter (for distance estimation)
+# Adjust based on typical camera setup and video resolution
+PIXELS_PER_METER = 50

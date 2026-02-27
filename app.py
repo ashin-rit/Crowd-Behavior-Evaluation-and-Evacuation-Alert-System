@@ -1,8 +1,7 @@
 """
 ================================================================================
-CROWD EVALUATION SYSTEM - MULTI-PAGE APPLICATION (REDESIGNED)
+CROWD EVALUATION SYSTEM
 ================================================================================
-Modern dark theme with purple/cyan accents matching mobile UI aesthetics
 
 Pages:
     1. Home - System overview and dashboard
@@ -10,8 +9,6 @@ Pages:
     3. Live Analysis - Real-time video processing
     4. Analytics - Reports and insights
 
-Author: Ashin Saji
-MCA Final Year Project
 ================================================================================
 """
 

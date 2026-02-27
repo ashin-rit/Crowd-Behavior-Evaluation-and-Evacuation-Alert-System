@@ -22,27 +22,13 @@ from config import DENSITY_THRESHOLDS
 # POINT-IN-POLYGON (RAY-CASTING ALGORITHM)
 # ==============================================================================
 
-def point_in_polygon(px: float, py: float, polygon_pct: List[Tuple[float, float]],
-                     frame_w: int, frame_h: int) -> bool:
+def point_in_polygon(px: float, py: float, poly_px: List[Tuple[float, float]]) -> bool:
     """
     Determine if a pixel point (px, py) is inside a polygon defined
-    by percentage-based vertices.
+    by pixel-based vertices.
 
-    Uses the ray-casting algorithm: cast a horizontal ray from the point
-    and count how many polygon edges it crosses. Odd = inside, even = outside.
-
-    Args:
-        px: X coordinate of the point in pixels
-        py: Y coordinate of the point in pixels
-        polygon_pct: List of (x_pct, y_pct) vertices (0.0 to 1.0)
-        frame_w: Frame width in pixels
-        frame_h: Frame height in pixels
-
-    Returns:
-        True if the point is inside the polygon
+    Uses the ray-casting algorithm.
     """
-    # Convert percentage vertices to pixel coordinates
-    poly_px = [(v[0] * frame_w, v[1] * frame_h) for v in polygon_pct]
     n = len(poly_px)
     if n < 3:
         return False
@@ -68,27 +54,24 @@ def assign_detections_to_zones(detections: List[Dict],
                                 frame_w: int, frame_h: int) -> Dict[str, int]:
     """
     For each detected person, determine which polygon zone contains them.
-
-    Args:
-        detections: List of detection dicts with 'center': (cx, cy)
-        polygon_zones: List of zone dicts with 'id' and 'polygon'
-        frame_w: Frame width in pixels
-        frame_h: Frame height in pixels
-
-    Returns:
-        Dict mapping zone_id -> person count
+    Pre-calculates pixel coordinates for each zone once per frame.
     """
     zone_counts = {zone["id"]: 0 for zone in polygon_zones}
+    
+    # Pre-calculate pixel coordinates for all zones
+    zone_polys_px = {
+        zone["id"]: [(v[0] * frame_w, v[1] * frame_h) for v in zone["polygon"]]
+        for zone in polygon_zones
+    }
 
     for det in detections:
         cx, cy = det["center"]
-        for zone in polygon_zones:
-            if point_in_polygon(cx, cy, zone["polygon"], frame_w, frame_h):
-                zone_counts[zone["id"]] += 1
-                det["zone_id"] = zone["id"]
+        for zone_id, poly_px in zone_polys_px.items():
+            if point_in_polygon(cx, cy, poly_px):
+                zone_counts[zone_id] += 1
+                det["zone_id"] = zone_id
                 break
         else:
-            # Person not in any defined zone
             det["zone_id"] = None
 
     return zone_counts

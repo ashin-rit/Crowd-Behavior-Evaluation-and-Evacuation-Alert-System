@@ -75,18 +75,20 @@ def _init_config_defaults():
 # VIDEO FRAME HELPERS
 # ==============================================================================
 
-def _get_first_frame_image():
-    """Extract the first frame from the uploaded video as a PIL Image."""
-    if 'video_file' not in st.session_state or st.session_state.video_file is None:
+@st.cache_data(show_spinner=False)
+def _get_first_frame_image(video_bytes):
+    """Extract the first frame from video bytes as an RGB numpy array."""
+    if video_bytes is None:
         return None
     try:
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-        temp_file.write(st.session_state.video_file)
-        temp_file.close()
-        cap = cv2.VideoCapture(temp_file.name)
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_file:
+            temp_file.write(video_bytes)
+            temp_path = temp_file.name
+            
+        cap = cv2.VideoCapture(temp_path)
         ret, frame = cap.read()
         cap.release()
-        os.unlink(temp_file.name)
+        os.unlink(temp_path)
         if ret:
             return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     except Exception:
@@ -311,7 +313,7 @@ def _render_zone_editor():
 
 def _render_zone_canvas():
     """Render the bi-directional canvas component for polygon zone drawing."""
-    frame = _get_first_frame_image()
+    frame = _get_first_frame_image(st.session_state.get('video_file'))
     if frame is None:
         st.info("📹 Upload a video first to draw custom zones on the first frame.")
         return
@@ -418,7 +420,7 @@ def _render_exit_editor():
 
 def _render_exit_canvas():
     """Render the bi-directional canvas component for exit point placement."""
-    frame = _get_first_frame_image()
+    frame = _get_first_frame_image(st.session_state.get('video_file'))
     if frame is None:
         st.info("📹 Upload a video first to place exit points on the frame.")
         return
@@ -562,7 +564,6 @@ def _render_action_buttons():
                     return
                 st.session_state.config_saved = True
                 st.success("✓ Configuration saved!")
-                st.balloons()
         with cr:
             if st.button("Start Analysis", width='stretch'):
                 has_video = 'video_file' in st.session_state and st.session_state.video_file is not None
@@ -622,7 +623,7 @@ def _render_config_summary():
 
 def _render_preview():
     """Render zone + exit overlay preview on the first frame."""
-    frame = _get_first_frame_image()
+    frame = _get_first_frame_image(st.session_state.get('video_file'))
     if frame is None:
         return
     st.markdown("### <i class='ph-duotone ph-eye'></i> Live Preview", unsafe_allow_html=True)
